@@ -1,4 +1,3 @@
-
 (function () {
   'use strict';
 
@@ -150,7 +149,14 @@
         value = state.playerBoard[r][c];
         el.textContent = value === 0 ? '' : String(value);
 
-        el.classList.remove('given', 'error', 'hinted', 'same-number', 'peer', 'selected');
+        el.classList.remove(
+          'given',
+          'error',
+          'hinted',
+          'same-number',
+          'peer',
+          'selected'
+        );
 
         if (state.givenCells[r][c]) el.classList.add('given');
         if (state.hintedCells[r + '_' + c]) el.classList.add('hinted');
@@ -168,13 +174,16 @@
       for (c = 0; c < 9; c++) {
         v = state.playerBoard[r][c];
         if (v === 0) continue;
+
         var duplicate = false;
+
         for (cc = 0; cc < 9; cc++) {
           if (cc !== c && state.playerBoard[r][cc] === v) {
             duplicate = true;
             break;
           }
         }
+
         if (!duplicate) {
           for (rr = 0; rr < 9; rr++) {
             if (rr !== r && state.playerBoard[rr][c] === v) {
@@ -183,27 +192,35 @@
             }
           }
         }
+
         if (!duplicate) {
           boxRow = Math.floor(r / 3) * 3;
           boxCol = Math.floor(c / 3) * 3;
+
           for (br = boxRow; br < boxRow + 3 && !duplicate; br++) {
             for (bc = boxCol; bc < boxCol + 3; bc++) {
-              if ((br !== r || bc !== c) && state.playerBoard[br][bc] === v) {
+              if (
+                (br !== r || bc !== c) &&
+                state.playerBoard[br][bc] === v
+              ) {
                 duplicate = true;
                 break;
               }
             }
           }
         }
+
         if (duplicate) conflicts[r + '_' + c] = true;
       }
     }
+
     return conflicts;
   }
 
   function applyHighlights() {
     var sel = state.selected;
     if (!sel) return;
+
     var selVal = state.playerBoard[sel.row][sel.col];
     var el = getCellElement(sel.row, sel.col);
     if (el) el.classList.add('selected');
@@ -211,15 +228,24 @@
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
         if (r === sel.row && c === sel.col) continue;
+
         var cell = cellsMatrix[r][c];
-        if (r === sel.row || c === sel.col) cell.classList.add('peer');
-        if (selVal !== 0 && state.playerBoard[r][c] === selVal) cell.classList.add('same-number');
+
+        if (r === sel.row || c === sel.col) {
+          cell.classList.add('peer');
+        }
+
+        if (selVal !== 0 && state.playerBoard[r][c] === selVal) {
+          cell.classList.add('same-number');
+        }
       }
     }
 
     var conflicts = computeConflicts();
+
     for (var key in conflicts) {
       if (!Object.prototype.hasOwnProperty.call(conflicts, key)) continue;
+
       var parts = key.split('_');
       var ce = getCellElement(Number(parts[0]), Number(parts[1]));
       if (ce) ce.classList.add('error');
@@ -228,18 +254,21 @@
 
   function updateProgress() {
     var filled = 0;
+
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
         if (state.playerBoard[r][c] !== 0) filled++;
       }
     }
+
     dom.progressText.textContent = filled + ' / 81';
     dom.progressFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
   }
 
   function updateStatusBar() {
     dom.levelDisplay.textContent = String(state.level);
-    dom.difficultyDisplay.textContent = DIFFICULTY_LABELS[state.difficulty] || state.difficulty;
+    dom.difficultyDisplay.textContent =
+      DIFFICULTY_LABELS[state.difficulty] || state.difficulty;
   }
 
   function selectCell(row, col) {
@@ -256,8 +285,10 @@
   function placeNumber(num) {
     if (state.paused || state.won) return;
     if (!state.selected) return;
+
     var r = state.selected.row;
     var c = state.selected.col;
+
     if (state.givenCells[r][c]) return;
 
     var previous = state.playerBoard[r][c];
@@ -265,7 +296,9 @@
 
     state.playerBoard[r][c] = num;
     recordHistory({ row: r, col: c, previous: previous });
+
     delete state.hintedCells[r + '_' + c];
+
     renderBoard();
     checkWin();
     persistProgress();
@@ -274,14 +307,20 @@
   function eraseCell() {
     if (state.paused || state.won) return;
     if (!state.selected) return;
+
     var r = state.selected.row;
     var c = state.selected.col;
+
     if (state.givenCells[r][c]) return;
+
     var previous = state.playerBoard[r][c];
     if (previous === 0) return;
+
     state.playerBoard[r][c] = 0;
     recordHistory({ row: r, col: c, previous: previous });
+
     delete state.hintedCells[r + '_' + c];
+
     renderBoard();
     persistProgress();
   }
@@ -289,12 +328,58 @@
   function undoMove() {
     if (state.paused || state.won) return;
     if (state.history.length === 0) return;
+
     var entry = state.history.pop();
     if (!entry) return;
     if (state.givenCells[entry.row][entry.col]) return;
+
     state.playerBoard[entry.row][entry.col] = entry.previous;
+    delete state.hintedCells[entry.row + '_' + entry.col];
+
     renderBoard();
     persistProgress();
+  }
+
+  // التحقق من إحداثيات الخلية.
+  function isValidCoordinate(row, col) {
+    return (
+      typeof row === 'number' &&
+      typeof col === 'number' &&
+      isFinite(row) &&
+      isFinite(col) &&
+      Math.floor(row) === row &&
+      Math.floor(col) === col &&
+      row >= 0 && row < 9 &&
+      col >= 0 && col < 9
+    );
+  }
+
+  // التحقق من أن القيمة عدد صحيح.
+  function isPlainInt(value) {
+    return typeof value === 'number' &&
+      isFinite(value) &&
+      Math.floor(value) === value;
+  }
+
+  // التحقق من بنية الرقعة وقيم خلاياها.
+  function isValidBoardShape(board) {
+    if (!Array.isArray(board) || board.length !== 9) return false;
+
+    for (var r = 0; r < 9; r++) {
+      if (!Array.isArray(board[r]) || board[r].length !== 9) {
+        return false;
+      }
+
+      for (var c = 0; c < 9; c++) {
+        var value = board[r][c];
+
+        if (!isPlainInt(value) || value < 0 || value > 9) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   // يتحقق من صلاحية الرقم وفق الرقعة الحالية فقط.
@@ -308,11 +393,15 @@
     if (current !== 0 && current !== num) return false;
 
     for (var c = 0; c < 9; c++) {
-      if (c !== col && state.playerBoard[row][c] === num) return false;
+      if (c !== col && state.playerBoard[row][c] === num) {
+        return false;
+      }
     }
 
     for (var r = 0; r < 9; r++) {
-      if (r !== row && state.playerBoard[r][col] === num) return false;
+      if (r !== row && state.playerBoard[r][col] === num) {
+        return false;
+      }
     }
 
     var boxRow = Math.floor(row / 3) * 3;
@@ -320,7 +409,10 @@
 
     for (var br = boxRow; br < boxRow + 3; br++) {
       for (var bc = boxCol; bc < boxCol + 3; bc++) {
-        if ((br !== row || bc !== col) && state.playerBoard[br][bc] === num) {
+        if (
+          (br !== row || bc !== col) &&
+          state.playerBoard[br][bc] === num
+        ) {
           return false;
         }
       }
@@ -329,72 +421,184 @@
     return true;
   }
 
-  // يعيد كل الأرقام التي لا تتعارض مع أرقام الرقعة الحالية.
+  // يعيد الأرقام التي لا تتعارض مع الصف والعمود والمربع.
   function getSafeCandidatesForCell(row, col) {
     if (!isValidCoordinate(row, col)) return [];
     if (state.playerBoard[row][col] !== 0) return [];
 
     var candidates = [];
+
     for (var num = 1; num <= 9; num++) {
-      if (isSafePlacement(row, col, num)) candidates.push(num);
+      if (isSafePlacement(row, col, num)) {
+        candidates.push(num);
+      }
     }
+
     return candidates;
+  }
+
+  function showHintMessage(message) {
+    window.alert(message);
+  }
+
+  // يختبر المرشح على نسخة من الرقعة الحالية.
+  // لا يغير رقعة اللاعب أثناء اختبار قابلية الحل.
+  function candidateKeepsBoardSolvable(row, col, num) {
+    if (!isSafePlacement(row, col, num)) return false;
+    if (typeof solveBoard !== 'function') return false;
+
+    var testBoard = cloneGrid(state.playerBoard);
+    testBoard[row][col] = num;
+
+    var result;
+
+    try {
+      result = solveBoard(testBoard);
+    } catch (error) {
+      return false;
+    }
+
+    return !!(
+      result &&
+      result.solved === true &&
+      result.board &&
+      isValidBoardShape(result.board) &&
+      typeof validateSolvedBoard === 'function' &&
+      validateSolvedBoard(result.board)
+    );
   }
 
   function applyHintCell(cell) {
     if (!cell || !isValidCoordinate(cell.row, cell.col)) return false;
-    if (!isPlainInt(cell.num) || cell.num < 1 || cell.num > 9) return false;
+    if (!isPlainInt(cell.num) || cell.num < 1 || cell.num > 9) {
+      return false;
+    }
 
     var row = cell.row;
     var col = cell.col;
 
     if (state.givenCells[row][col]) return false;
     if (state.playerBoard[row][col] !== 0) return false;
-
-    // أعد التحقق قبل التعديل، لمنع إدخال أي رقم متعارض.
     if (!isSafePlacement(row, col, cell.num)) return false;
 
     var previous = state.playerBoard[row][col];
+
     state.playerBoard[row][col] = cell.num;
     recordHistory({ row: row, col: col, previous: previous });
+
     state.hintedCells[row + '_' + col] = true;
     state.selected = { row: row, col: col };
 
     renderBoard();
     checkWin();
     persistProgress();
+
     return true;
   }
 
-  // التلميح يعمل على الخانة المحددة حصراً.
-  // لا ينتقل إلى خانة أخرى ولا يعتمد على solution المخزّن.
-  // إذا احتوت الخانة على رقم أو لم يوجد مرشح صالح، فلا يغيّر الرقعة.
+  // التلميح يعالج الخلية المحددة حصراً.
+  // يتحقق من الرقعة الحالية، ثم يختبر المرشحين باستخدام محرك الحل.
+  // لا يستخدم الحل المخزن ولا يملأ خلية أخرى.
   function applyHint() {
     if (state.paused || state.won) return;
-    if (!state.selected) return;
+
+    if (!state.selected) {
+      showHintMessage('حدد خلية فارغة أولاً للحصول على تلميح.');
+      return;
+    }
 
     var row = state.selected.row;
     var col = state.selected.col;
 
-    if (!isValidCoordinate(row, col)) return;
-    if (state.givenCells[row][col]) return;
-    if (state.playerBoard[row][col] !== 0) return;
+    if (!isValidCoordinate(row, col)) {
+      showHintMessage('تعذر تحديد الخلية. حاول تحديدها مرة أخرى.');
+      return;
+    }
+
+    if (state.givenCells[row][col]) {
+      showHintMessage('هذه خلية أصلية ولا تحتاج إلى تلميح.');
+      return;
+    }
+
+    if (state.playerBoard[row][col] !== 0) {
+      showHintMessage('الخلية المحددة تحتوي على رقم بالفعل. اختر خلية فارغة.');
+      return;
+    }
+
+    if (!isValidBoardShape(state.playerBoard)) {
+      showHintMessage('تعذر إعطاء التلميح لأن بيانات الرقعة غير صالحة.');
+      return;
+    }
+
+    // لا نكمل إذا كانت هناك أرقام متعارضة في أي مكان بالرقعة.
+    if (typeof validateBoard !== 'function') {
+      showHintMessage('محرك التحقق غير متاح. تأكد من تحميل engine.js.');
+      return;
+    }
+
+    var boardIsValid = false;
+
+    try {
+      boardIsValid = validateBoard(cloneGrid(state.playerBoard)) === true;
+    } catch (error) {
+      boardIsValid = false;
+    }
+
+    if (!boardIsValid) {
+      showHintMessage(
+        'توجد أرقام متعارضة في الرقعة. صحح التعارضات أولاً ثم اطلب التلميح.'
+      );
+      return;
+    }
+
+    if (typeof solveBoard !== 'function') {
+      showHintMessage('محرك الحل غير متاح. تأكد من تحميل engine.js.');
+      return;
+    }
 
     var candidates = getSafeCandidatesForCell(row, col);
 
-    // لا نخترع رقماً إذا كانت هناك احتمالات متعددة؛
-    // قواعد الصف والعمود والمربع وحدها لا تحدد حلاً وحيداً في هذه الحالة.
-    if (candidates.length !== 1) return;
+    if (candidates.length === 0) {
+      showHintMessage(
+        'لا يوجد رقم صالح للخلية المحددة وفق الأرقام الحالية.'
+      );
+      return;
+    }
 
-    applyHintCell({
+    // اختبار المرشحين واحداً تلو الآخر على نسخ مستقلة.
+    // يقبل المرشح فقط إذا بقيت الرقعة قابلة للحل.
+    var validCandidates = [];
+
+    for (var i = 0; i < candidates.length; i++) {
+      if (candidateKeepsBoardSolvable(row, col, candidates[i])) {
+        validCandidates.push(candidates[i]);
+      }
+    }
+
+    if (validCandidates.length === 0) {
+      showHintMessage(
+        'لم يتم العثور على رقم يبقي الرقعة الحالية قابلة للحل. ' +
+        'راجع الأرقام التي أدخلتها.'
+      );
+      return;
+    }
+
+    // إذا بقي أكثر من مرشح صالح، نختار أحدها فقط بعد التأكد
+    // من أنه لا يتعارض مع الرقعة الحالية وأن الرقعة تظل قابلة للحل.
+    var chosen = validCandidates[0];
+
+    if (!applyHintCell({
       row: row,
       col: col,
-      num: candidates[0]
-    });
+      num: chosen
+    })) {
+      showHintMessage('تعذر تطبيق التلميح. لم يتم تغيير الرقعة.');
+    }
   }
 
   function togglePause() {
     if (state.won) return;
+
     if (state.paused) {
       state.paused = false;
       dom.pauseOverlay.hidden = true;
@@ -408,11 +612,13 @@
       dom.pauseBtn.textContent = 'استكمال';
       dom.pauseBtn.classList.add('active');
     }
+
     persistProgress();
   }
 
   function restartLevel() {
     if (!state.puzzle) return;
+
     state.playerBoard = cloneGrid(state.puzzle);
     state.history = [];
     state.hintedCells = {};
@@ -421,9 +627,12 @@
     state.elapsedSeconds = 0;
     state.timerRunning = false;
     state.timerStartedAt = 0;
+
     updateTimerDisplay();
     renderBoard();
+
     if (!state.paused) startTimer();
+
     persistProgress();
   }
 
@@ -440,13 +649,22 @@
 
     state.won = true;
     stopTimer();
+
     var time = state.elapsedSeconds;
     state.lastCompletedLevel = state.level;
+
     saveBestTime(state.level, time);
-    saveCompletedLevel(state.level, { seconds: time, difficulty: state.difficulty });
+    saveCompletedLevel(state.level, {
+      seconds: time,
+      difficulty: state.difficulty
+    });
+
     var best = getBestTime(state.level);
+
     dom.winTime.textContent = formatTime(time);
-    dom.winBestTime.textContent = best !== null ? formatTime(best) : formatTime(time);
+    dom.winBestTime.textContent =
+      best !== null ? formatTime(best) : formatTime(time);
+
     dom.winOverlay.hidden = false;
     updateStatusBar();
     clearProgress();
@@ -454,6 +672,7 @@
 
   function persistProgress() {
     if (state.won) return;
+
     saveProgress({
       level: state.level,
       difficulty: state.difficulty,
@@ -461,7 +680,8 @@
       puzzle: state.puzzle,
       playerBoard: state.playerBoard,
       elapsedSeconds: state.timerRunning
-        ? state.elapsedSeconds + Math.floor((Date.now() - state.timerStartedAt) / 1000)
+        ? state.elapsedSeconds +
+          Math.floor((Date.now() - state.timerStartedAt) / 1000)
         : state.elapsedSeconds,
       paused: state.paused
     });
@@ -470,6 +690,7 @@
   function loadLevel(level) {
     var difficulty = getDifficultyForLevel(level);
     var baseSeed = 'DrDer-Sudoku-v1';
+
     var result = createLevel(level, difficulty, {
       baseSeed: baseSeed,
       maxAttempts: 10,
@@ -481,26 +702,37 @@
     }
 
     var solution = null;
+
     if (result.solution) {
       solution = cloneGrid(result.solution);
     } else {
       var solved = solveBoard(result.puzzle);
+
       if (solved && solved.solved && solved.board) {
         solution = cloneGrid(solved.board);
       }
     }
+
     if (!solution) {
       var solved2 = solveBoard(result.puzzle);
+
       if (solved2 && solved2.solved && solved2.board) {
         solution = cloneGrid(solved2.board);
       }
     }
+
     if (!solution) return false;
 
     state.level = level;
+
     state.difficulty = isDifficultyName(result.actualDifficulty)
       ? result.actualDifficulty
-      : (isDifficultyName(result.requestedDifficulty) ? result.requestedDifficulty : difficulty);
+      : (
+          isDifficultyName(result.requestedDifficulty)
+            ? result.requestedDifficulty
+            : difficulty
+        );
+
     state.seed = result.seed;
     state.puzzle = cloneGrid(result.puzzle);
     state.solution = solution;
@@ -524,12 +756,14 @@
 
   function startNewLevel(level) {
     stopTimer();
+
     dom.pauseOverlay.hidden = true;
     dom.winOverlay.hidden = true;
     dom.pauseBtn.textContent = 'إيقاف';
     dom.pauseBtn.classList.remove('active');
 
     var ok = loadLevel(level);
+
     if (!ok) {
       dom.progressText.textContent = 'تعذر توليد المرحلة';
       return;
@@ -546,8 +780,12 @@
     var saved = loadProgress();
     if (!saved) return false;
 
-    var difficulty = isDifficultyName(saved.difficulty) ? saved.difficulty : getDifficultyForLevel(saved.level);
+    var difficulty = isDifficultyName(saved.difficulty)
+      ? saved.difficulty
+      : getDifficultyForLevel(saved.level);
+
     var baseSeed = 'DrDer-Sudoku-v1';
+
     var levelData = createLevel(saved.level, difficulty, {
       baseSeed: baseSeed,
       maxAttempts: 10,
@@ -555,11 +793,18 @@
     });
 
     var solution = null;
-    if (levelData && !levelData.failed && levelData.puzzle && levelData.seed === saved.seed) {
+
+    if (
+      levelData &&
+      !levelData.failed &&
+      levelData.puzzle &&
+      levelData.seed === saved.seed
+    ) {
       if (levelData.solution) {
         solution = cloneGrid(levelData.solution);
       } else {
         var solvedLevel = solveBoard(levelData.puzzle);
+
         if (solvedLevel && solvedLevel.solved && solvedLevel.board) {
           solution = cloneGrid(solvedLevel.board);
         }
@@ -568,6 +813,7 @@
 
     if (!solution) {
       var solvedSaved = solveBoard(saved.puzzle);
+
       if (solvedSaved && solvedSaved.solved && solvedSaved.board) {
         solution = cloneGrid(solvedSaved.board);
       }
@@ -595,46 +841,77 @@
     updateStatusBar();
     renderBoard();
     startTimer();
+
     return true;
   }
 
   function handleBoardClick(event) {
     var target = event.target;
-    if (!target || !target.classList || !target.classList.contains('cell')) return;
+
+    if (!target || !target.classList || !target.classList.contains('cell')) {
+      return;
+    }
+
     var row = Number(target.getAttribute('data-row'));
     var col = Number(target.getAttribute('data-col'));
+
     if (!isFinite(row) || !isFinite(col)) return;
+
     selectCell(row, col);
   }
 
   function handleNumberPad(event) {
     var target = event.target;
-    if (!target || !target.classList || !target.classList.contains('num-btn')) return;
+
+    if (
+      !target ||
+      !target.classList ||
+      !target.classList.contains('num-btn')
+    ) {
+      return;
+    }
+
     var num = Number(target.getAttribute('data-num'));
     if (!isFinite(num)) return;
+
     placeNumber(num);
   }
 
   function handleKeyDown(event) {
     if (state.paused || state.won) return;
+
     var key = event.key;
+
     if (key >= '1' && key <= '9') {
       placeNumber(Number(key));
       event.preventDefault();
       return;
     }
+
     if (key === 'Backspace' || key === 'Delete' || key === '0') {
       eraseCell();
       event.preventDefault();
       return;
     }
+
     if (!state.selected) return;
+
     var r = state.selected.row;
     var c = state.selected.col;
-    if (key === 'ArrowUp') { if (r > 0) selectCell(r - 1, c); event.preventDefault(); }
-    else if (key === 'ArrowDown') { if (r < 8) selectCell(r + 1, c); event.preventDefault(); }
-    else if (key === 'ArrowLeft') { if (c > 0) selectCell(r, c - 1); event.preventDefault(); }
-    else if (key === 'ArrowRight') { if (c < 8) selectCell(r, c + 1); event.preventDefault(); }
+
+    if (key === 'ArrowUp') {
+      if (r > 0) selectCell(r - 1, c);
+      event.preventDefault();
+    } else if (key === 'ArrowDown') {
+      if (r < 8) selectCell(r + 1, c);
+      event.preventDefault();
+    } else if (key === 'ArrowLeft') {
+      if (c > 0) selectCell(r, c - 1);
+      event.preventDefault();
+    } else if (key === 'ArrowRight') {
+      if (c < 8) selectCell(r, c + 1);
+      event.preventDefault();
+    }
   }
 
   function handleVisibilityChange() {
@@ -643,11 +920,10 @@
         pauseTimer();
         state.timerRunning = false;
       }
+
       persistProgress();
-    } else {
-      if (!state.paused && !state.won) {
-        resumeTimer();
-      }
+    } else if (!state.paused && !state.won) {
+      resumeTimer();
     }
   }
 
@@ -655,12 +931,15 @@
     if (state.timerRunning) {
       pauseTimer();
     }
+
     persistProgress();
   }
 
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
+
     var swPath = 'sw.js';
+
     navigator.serviceWorker.register(swPath).catch(function () {});
   }
 
@@ -679,13 +958,16 @@
 
     createBoardElement();
 
-    document.querySelector('.number-pad').addEventListener('click', handleNumberPad);
+    document.querySelector('.number-pad')
+      .addEventListener('click', handleNumberPad);
+
     $('eraseBtn').addEventListener('click', eraseCell);
     $('undoBtn').addEventListener('click', undoMove);
     $('hintBtn').addEventListener('click', applyHint);
     $('pauseBtn').addEventListener('click', togglePause);
     $('restartBtn').addEventListener('click', restartLevel);
     $('resumeBtn').addEventListener('click', togglePause);
+
     $('nextLevelBtn').addEventListener('click', function () {
       startNewLevel(getNextLevel(state.level));
     });
@@ -697,11 +979,13 @@
     setInterval(tickTimer, 1000);
 
     var resumed = false;
+
     try {
       resumed = resumeSavedProgress();
     } catch (e) {
       resumed = false;
     }
+
     if (!resumed) {
       startNewLevel(1);
     }
