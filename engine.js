@@ -1,6 +1,7 @@
 // DrDer-Sudoku engine.js
 // محرك سودوكو مستقل عن واجهة المستخدم.
 // التقييم الداخلي للصعوبة تقريبي بحسب التقنيات المدعومة فقط.
+// يسمح المحرك بتعدد الحلول الصحيحة، ولا يشترط وجود حل وحيد.
 
 var DIFFICULTY_TARGETS = {
   easy: { min: 36, max: 45 },
@@ -8,8 +9,6 @@ var DIFFICULTY_TARGETS = {
   hard: { min: 52, max: 56 },
   expert: { min: 57, max: 64 }
 };
-
-// ---------- التحقق من البنية والقيم ----------
 
 function isPlainInt(v) {
   return typeof v === 'number' && isFinite(v) && Math.floor(v) === v;
@@ -78,8 +77,6 @@ function isValidPuzzle(board) {
   return validateBoard(board);
 }
 
-// ---------- الوصول إلى الوحدات ----------
-
 function getRowCells(board, row) {
   if (!isValidBoardShape(board) || !isPlainInt(row) || row < 0 || row > 8) return [];
   var cells = [];
@@ -125,8 +122,6 @@ function getMissingNumbers(board, cells) {
   return missing;
 }
 
-// ---------- اللوحة الفارغة والنسخ ----------
-
 function createEmptyBoard() {
   var board = [];
   for (var r = 0; r < 9; r++) {
@@ -162,8 +157,6 @@ function cloneCandidates(candidates) {
   }
   return copy;
 }
-
-// ---------- صلاحية الحركة والمرشحون ----------
 
 function isValidMove(board, row, col, num) {
   if (!isValidBoardShape(board)) return false;
@@ -218,8 +211,6 @@ function buildCandidates(board) {
   return result;
 }
 
-// ---------- الخلايا الفارغة والاختيار ----------
-
 function findEmptyCell(board) {
   if (!isValidBoardShape(board)) return null;
   for (var r = 0; r < 9; r++) {
@@ -247,8 +238,6 @@ function findBestEmptyCell(board) {
   return best;
 }
 
-// ---------- اكتمال اللوحة والتحقق من صحة الحل ----------
-
 function isBoardComplete(board) {
   if (!isValidBoardShape(board)) return false;
   for (var r = 0; r < 9; r++) {
@@ -263,8 +252,6 @@ function validateSolvedBoard(board) {
   if (!isBoardComplete(board)) return false;
   return validateBoard(board);
 }
-
-// ---------- الحل وعد الحلول ----------
 
 function solveBoard(board) {
   if (!validateBoard(board)) return { solved: false, board: null };
@@ -319,8 +306,6 @@ function countSolutions(board, limit) {
   backtrack();
   return count;
 }
-
-// ---------- العشوائية ----------
 
 function createRng(seed) {
   var h = 2166136261 >>> 0;
@@ -380,8 +365,6 @@ function generateSolvedBoard(rng) {
   return board;
 }
 
-// ---------- الصعوبة وحذف الخلايا ----------
-
 function isDifficultyName(name) {
   return typeof name === 'string' && Object.prototype.hasOwnProperty.call(DIFFICULTY_TARGETS, name);
 }
@@ -397,12 +380,18 @@ function countEmptyCells(board) {
   return n;
 }
 
-function removeCells(solution, difficulty, rng) {
+// removeCells: تُزيل الأرقام من الحل المكتمل.
+// يُلغى اشتراط الحل الوحيد؛ يُشترط فقط بقاء اللغز قابلًا للحل.
+// يمكن تعطيل التحقق من قابلية الحل عند الحاجة عبر allowUnsolved = true
+// في الخيارات المخصصة، لكن السلوك الافتراضي يبقى التحقق من وجود حل واحد على الأقل.
+function removeCells(solution, difficulty, rng, options) {
+  var opts = options || {};
   var target = isDifficultyName(difficulty) ? DIFFICULTY_TARGETS[difficulty] : DIFFICULTY_TARGETS.medium;
   var fail = {
     puzzle: null,
     emptyCells: 0,
     unique: false,
+    solvable: false,
     targetReached: false,
     targetMin: target.min,
     targetMax: target.max
@@ -419,6 +408,8 @@ function removeCells(solution, difficulty, rng) {
   var shuffled = shuffleArray(positions, fn);
 
   var currentEmpty = 0;
+  var allowUnsolved = opts.allowUnsolved === true;
+
   for (var i = 0; i < shuffled.length; i++) {
     if (currentEmpty >= target.max) break;
     var row = shuffled[i].row;
@@ -426,7 +417,9 @@ function removeCells(solution, difficulty, rng) {
     if (puzzle[row][col] === 0) continue;
     var backup = puzzle[row][col];
     puzzle[row][col] = 0;
-    if (countSolutions(puzzle, 2) !== 1) {
+
+    var solvable = allowUnsolved ? true : (countSolutions(puzzle, 1) >= 1);
+    if (!solvable) {
       puzzle[row][col] = backup;
     } else {
       currentEmpty++;
@@ -434,26 +427,28 @@ function removeCells(solution, difficulty, rng) {
   }
 
   var emptyCells = countEmptyCells(puzzle);
+  var solvableFinal = countSolutions(puzzle, 1) >= 1;
   var unique = countSolutions(puzzle, 2) === 1;
-  var targetReached = unique && emptyCells >= target.min && emptyCells <= target.max;
+  var targetReached = solvableFinal && emptyCells >= target.min && emptyCells <= target.max;
 
   return {
     puzzle: puzzle,
     emptyCells: emptyCells,
     unique: unique,
+    solvable: solvableFinal,
     targetReached: targetReached,
     targetMin: target.min,
     targetMax: target.max
   };
 }
 
-// ---------- توليد اللغز ----------
-
+// generatePuzzle: يقبل الألغاز ذات الحل الواحد أو المتعدد، بشرط أن يكون اللغز قابلًا للحل.
 function generatePuzzle(options) {
   var opts = options || {};
   var requested = isDifficultyName(opts.difficulty) ? opts.difficulty : 'medium';
   var maxAttempts = (isPlainInt(opts.maxAttempts) && opts.maxAttempts > 0) ? opts.maxAttempts : 5;
   var baseSeed = opts.seed !== undefined ? String(opts.seed) : ('auto-' + Date.now());
+  var allowMultipleSolutions = opts.allowMultipleSolutions === true;
 
   var best = null;
   for (var attempt = 0; attempt < maxAttempts; attempt++) {
@@ -461,8 +456,10 @@ function generatePuzzle(options) {
     var rng = createRng(attemptSeed);
     var solution = generateSolvedBoard(rng);
     if (!solution) continue;
-    var removal = removeCells(solution, requested, rng);
-    if (!removal.puzzle || !removal.unique) continue;
+    var removal = removeCells(solution, requested, rng, {});
+    if (!removal.puzzle) continue;
+    if (removal.solvable !== true) continue;
+    if (!allowMultipleSolutions && removal.unique !== true) continue;
 
     var result = {
       puzzle: removal.puzzle,
@@ -472,7 +469,9 @@ function generatePuzzle(options) {
       actualDifficulty: null,
       seed: attemptSeed,
       emptyCells: removal.emptyCells,
-      unique: true,
+      unique: removal.unique === true,
+      solvable: true,
+      multiSolution: removal.unique !== true,
       targetReached: removal.targetReached,
       targetMin: removal.targetMin,
       targetMax: removal.targetMax,
@@ -494,6 +493,8 @@ function generatePuzzle(options) {
     seed: baseSeed,
     emptyCells: 0,
     unique: false,
+    solvable: false,
+    multiSolution: false,
     targetReached: false,
     targetMin: DIFFICULTY_TARGETS[requested].min,
     targetMax: DIFFICULTY_TARGETS[requested].max,
@@ -502,8 +503,6 @@ function generatePuzzle(options) {
     reason: 'generation-failed'
   };
 }
-
-// ---------- دوال الكشف عن الأنماط ----------
 
 function findNakedSingles(board) {
   var result = [];
@@ -693,8 +692,6 @@ function findXWing(board) {
   return result;
 }
 
-// ---------- إدارة المرشحين ----------
-
 function propagatePlacedNumber(candidates, row, col, num) {
   var i;
   for (i = 0; i < 9; i++) {
@@ -841,8 +838,6 @@ function tryPlace(board, candidates, row, col, num) {
   propagatePlacedNumber(candidates, row, col, num);
   return true;
 }
-
-// ---------- تطبيق التقنيات ----------
 
 function applyNakedSingles(board, candidates) {
   for (var r = 0; r < 9; r++) {
@@ -1126,10 +1121,9 @@ function countCandidateTotal(candidates) {
   return total;
 }
 
-// ---------- تقييم الصعوبة ----------
-
-// تقييم داخلي تقريبي بحسب التقنيات المدعومة فقط.
-// لا يُستخدم Backtracking للحل، بل فقط للتحقق من التفرد.
+// rateDifficulty: تقييم تقريبي بحسب التقنيات المدعومة.
+// في حال وجود أكثر من حل صحيح، يصبح التقييم غير موثوق لأن بعض تقنيات الاستبعاد تعتمد على افتراض الحل الوحيد،
+// لذلك نُرجع unresolved بدلًا من إصدار حكم قاطع.
 function rateDifficulty(puzzle) {
   if (!validateBoard(puzzle)) {
     return {
@@ -1157,8 +1151,8 @@ function rateDifficulty(puzzle) {
   }
   if (solCount > 1) {
     return {
-      status: 'invalid',
-      difficulty: 'unknown',
+      status: 'unresolved',
+      difficulty: 'unresolved',
       score: 0,
       techniques: {},
       solved: false,
@@ -1359,8 +1353,6 @@ function rateDifficulty(puzzle) {
   };
 }
 
-// ---------- التوليد حسب الصعوبة ----------
-
 function difficultyRank(name) {
   switch (name) {
     case 'easy': return 0;
@@ -1371,11 +1363,14 @@ function difficultyRank(name) {
   }
 }
 
+// generatePuzzleByDifficulty: تقبل الحلول المتعددة ولا ترفض اللغز بسببها.
+// عند غياب تقييم موثوق، تكون actualDifficulty = null مع status = unresolved من rating.
 function generatePuzzleByDifficulty(difficulty, options) {
   var requested = isDifficultyName(difficulty) ? difficulty : 'medium';
   var opts = options || {};
   var maxAttempts = (isPlainInt(opts.maxAttempts) && opts.maxAttempts > 0) ? opts.maxAttempts : 10;
   var baseSeed = opts.seed !== undefined ? String(opts.seed) : ('auto-' + Date.now());
+  var allowMultipleSolutions = opts.allowMultipleSolutions === true;
 
   var bestFallback = null;
   var bestDistance = Infinity;
@@ -1384,10 +1379,11 @@ function generatePuzzleByDifficulty(difficulty, options) {
     var result = generatePuzzle({
       difficulty: requested,
       seed: baseSeed + '_gpd_' + attempt,
-      maxAttempts: 3
+      maxAttempts: 3,
+      allowMultipleSolutions: allowMultipleSolutions
     });
 
-    if (!result || !result.puzzle || result.unique !== true) continue;
+    if (!result || !result.puzzle || result.solvable !== true) continue;
 
     var rating = rateDifficulty(result.puzzle);
     if (!rating || rating.status === 'invalid') continue;
@@ -1404,7 +1400,9 @@ function generatePuzzleByDifficulty(difficulty, options) {
         actualDifficulty: requested,
         seed: result.seed,
         emptyCells: result.emptyCells,
-        unique: true,
+        unique: result.unique === true,
+        solvable: true,
+        multiSolution: result.multiSolution === true,
         rating: rating,
         fallback: false,
         failed: false
@@ -1430,7 +1428,9 @@ function generatePuzzleByDifficulty(difficulty, options) {
         actualDifficulty: (actualRank < 0 ? null : rating.difficulty),
         seed: result.seed,
         emptyCells: result.emptyCells,
-        unique: true,
+        unique: result.unique === true,
+        solvable: true,
+        multiSolution: result.multiSolution === true,
         rating: rating,
         fallback: true,
         failed: false
@@ -1449,14 +1449,14 @@ function generatePuzzleByDifficulty(difficulty, options) {
     seed: baseSeed,
     emptyCells: 0,
     unique: false,
+    solvable: false,
+    multiSolution: false,
     rating: null,
     fallback: false,
     failed: true,
     reason: 'generation-failed'
   };
 }
-
-// ---------- المراحل والبذور والتوقيع ----------
 
 function getLevelSeed(level, baseSeed) {
   var n = Number(level);
@@ -1465,10 +1465,12 @@ function getLevelSeed(level, baseSeed) {
   return base + ':level:' + String(n);
 }
 
+// createLevel: يقبل اللغز إذا كان قابلًا للحل، بغض النظر عن تعدد الحلول.
 function createLevel(level, difficulty, options) {
   var opts = options || {};
   var requested = isDifficultyName(difficulty) ? difficulty : 'medium';
   var seed = getLevelSeed(level, opts.baseSeed);
+  var allowMultipleSolutions = opts.allowMultipleSolutions === true;
 
   if (seed === null) {
     return {
@@ -1481,6 +1483,8 @@ function createLevel(level, difficulty, options) {
       solution: null,
       emptyCells: 0,
       unique: false,
+      solvable: false,
+      multiSolution: false,
       rating: null,
       signature: null,
       fallback: true,
@@ -1491,7 +1495,8 @@ function createLevel(level, difficulty, options) {
 
   var result = generatePuzzleByDifficulty(requested, {
     seed: seed,
-    maxAttempts: opts.maxAttempts || 10
+    maxAttempts: opts.maxAttempts || 10,
+    allowMultipleSolutions: allowMultipleSolutions
   });
 
   if (!result || !result.puzzle || result.failed) {
@@ -1505,6 +1510,8 @@ function createLevel(level, difficulty, options) {
       solution: null,
       emptyCells: 0,
       unique: false,
+      solvable: false,
+      multiSolution: false,
       rating: null,
       signature: null,
       fallback: true,
@@ -1525,6 +1532,8 @@ function createLevel(level, difficulty, options) {
     solution: result.solution,
     emptyCells: result.emptyCells,
     unique: result.unique === true,
+    solvable: result.solvable === true,
+    multiSolution: result.multiSolution === true,
     rating: result.rating,
     signature: signature,
     fallback: result.fallback === true,
