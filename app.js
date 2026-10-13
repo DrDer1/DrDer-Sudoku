@@ -1,7 +1,8 @@
 // DrDer-Sudoku app.js
 // واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
 // الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع) لا بمطابقة حل مخزّن.
-// التلميح يعتمد على استنتاجات منطقية إلزامية (Naked Single وHidden Single).
+// التلميح يعتمد على استنتاجات منطقية إلزامية (Naked Single وHidden Single)
+// مع فحص إضافي: يجب أن يبقى اللغز قابلًا للحل بعد إدخال الرقم.
 
 (function () {
   'use strict';
@@ -235,17 +236,9 @@
     dom.progressFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
   }
 
-  // updateStatusBar: يعرض أفضل وقت للمرحلة الحالية إن وُجد،
-  // وإلا يعرض أفضل وقت آخر مرحلة مكتملة، وإلا '—'.
   function updateStatusBar() {
     dom.levelDisplay.textContent = String(state.level);
     dom.difficultyDisplay.textContent = DIFFICULTY_LABELS[state.difficulty] || state.difficulty;
-
-    var best = getBestTime(state.level);
-    if (best === null && state.lastCompletedLevel !== null && state.lastCompletedLevel !== state.level) {
-      best = getBestTime(state.lastCompletedLevel);
-    }
-    dom.bestTimeDisplay.textContent = best !== null ? formatTime(best) : '—';
   }
 
   function selectCell(row, col) {
@@ -303,6 +296,16 @@
     persistProgress();
   }
 
+  // يتحقق أن وضع رقم معين في خلية لا يجعل اللوحة غير قابلة للحل.
+  // يستخدم نسخة مؤقتة من اللوحة، فلا يُغيّر الحالة الفعلية.
+  function isSafeHintPlacement(row, col, num) {
+    var temp = cloneGrid(state.playerBoard);
+    temp[row][col] = num;
+    var result = solveBoard(temp);
+    return result && result.solved && result.board;
+  }
+
+  // يبحث عن Naked Single مع فحص الأمان.
   function findLocalNakedSingle() {
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
@@ -310,13 +313,16 @@
         if (state.givenCells[r][c]) continue;
         var cands = getCandidates(state.playerBoard, r, c);
         if (cands.length === 1) {
-          return { row: r, col: c, num: cands[0] };
+          if (isSafeHintPlacement(r, c, cands[0])) {
+            return { row: r, col: c, num: cands[0] };
+          }
         }
       }
     }
     return null;
   }
 
+  // يبحث عن Hidden Single مع فحص الأمان.
   function findLocalHiddenSingle() {
     var r, c, num;
 
@@ -334,7 +340,11 @@
           var candsR = getCandidates(state.playerBoard, r, c);
           if (candsR.indexOf(num) !== -1) { count++; pos = { row: r, col: c }; }
         }
-        if (count === 1 && pos) return { row: pos.row, col: pos.col, num: num };
+        if (count === 1 && pos) {
+          if (isSafeHintPlacement(pos.row, pos.col, num)) {
+            return { row: pos.row, col: pos.col, num: num };
+          }
+        }
       }
     }
 
@@ -352,7 +362,11 @@
           var candsC = getCandidates(state.playerBoard, r, c);
           if (candsC.indexOf(num) !== -1) { countC++; posC = { row: r, col: c }; }
         }
-        if (countC === 1 && posC) return { row: posC.row, col: posC.col, num: num };
+        if (countC === 1 && posC) {
+          if (isSafeHintPlacement(posC.row, posC.col, num)) {
+            return { row: posC.row, col: posC.col, num: num };
+          }
+        }
       }
     }
 
@@ -375,7 +389,11 @@
               if (candsB.indexOf(num) !== -1) { countB++; posB = { row: r, col: c }; }
             }
           }
-          if (countB === 1 && posB) return { row: posB.row, col: posB.col, num: num };
+          if (countB === 1 && posB) {
+            if (isSafeHintPlacement(posB.row, posB.col, num)) {
+              return { row: posB.row, col: posB.col, num: num };
+            }
+          }
         }
       }
     }
@@ -688,7 +706,6 @@
     dom.levelDisplay = $('levelDisplay');
     dom.difficultyDisplay = $('difficultyDisplay');
     dom.timerDisplay = $('timerDisplay');
-    dom.bestTimeDisplay = $('bestTimeDisplay');
     dom.progressText = $('progressText');
     dom.progressFill = $('progressFill');
     dom.pauseBtn = $('pauseBtn');
