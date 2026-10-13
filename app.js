@@ -31,6 +31,7 @@
   };
 
   var dom = {};
+  var cellsMatrix = null;
 
   function $(id) {
     return document.getElementById(id);
@@ -110,10 +111,17 @@
     dom.timerDisplay.textContent = formatTime(total);
   }
 
+  // إنشاء الخلايا الـ81 مرة واحدة فقط عند التهيئة.
+  // الترتيب: صف 0 من العمود 0 إلى 8، ثم صف 1، وهكذا.
+  // الشبكة تُعرض باتجاه LTR لضمان أن الخلية رقم 0 تقع في الزاوية العليا اليسرى،
+  // وتأتي الفواصل الذهبية في أماكنها الصحيحة بعد كل ثلاثة أعمدة وثلاثة صفوف.
   function createBoardElement() {
     var board = $('sudokuBoard');
     board.innerHTML = '';
+    cellsMatrix = [];
+
     for (var r = 0; r < 9; r++) {
+      var rowCells = [];
       for (var c = 0; c < 9; c++) {
         var cell = document.createElement('button');
         cell.type = 'button';
@@ -125,22 +133,32 @@
         if (c === 2 || c === 5) cell.classList.add('box-right');
         if (r === 2 || r === 5) cell.classList.add('box-bottom');
         board.appendChild(cell);
+        rowCells.push(cell);
       }
+      cellsMatrix.push(rowCells);
     }
+
+    board.addEventListener('click', handleBoardClick);
   }
 
   function getCellElement(row, col) {
-    return dom.board.querySelector('.cell[data-row="' + row + '"][data-col="' + col + '"]');
+    if (!cellsMatrix) return null;
+    if (row < 0 || row > 8 || col < 0 || col > 8) return null;
+    return cellsMatrix[row][col];
   }
 
+  // تحديث محتوى الخلايا وحالاتها البصرية فقط.
+  // لا يُعاد بناء الهيكل، ولا تُضاف مستمعات جديدة، ولا تتأثر الحدود الذهبية.
   function renderBoard() {
-    for (var r = 0; r < 9; r++) {
-      for (var c = 0; c < 9; c++) {
-        var el = getCellElement(r, c);
-        if (!el) continue;
-        var value = state.playerBoard[r][c];
+    var r, c, el, value;
+    for (r = 0; r < 9; r++) {
+      for (c = 0; c < 9; c++) {
+        el = cellsMatrix[r][c];
+        value = state.playerBoard[r][c];
         el.textContent = value === 0 ? '' : String(value);
+
         el.classList.remove('given', 'error', 'hinted', 'same-number', 'peer', 'selected');
+
         if (state.givenCells[r][c]) el.classList.add('given');
         if (state.hintedCells[r + '_' + c]) el.classList.add('hinted');
       }
@@ -193,8 +211,7 @@
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
         if (r === sel.row && c === sel.col) continue;
-        var cell = getCellElement(r, c);
-        if (!cell) continue;
+        var cell = cellsMatrix[r][c];
         if (r === sel.row || c === sel.col) cell.classList.add('peer');
         if (selVal !== 0 && state.playerBoard[r][c] === selVal) cell.classList.add('same-number');
       }
@@ -534,8 +551,8 @@
     var c = state.selected.col;
     if (key === 'ArrowUp') { if (r > 0) selectCell(r - 1, c); event.preventDefault(); }
     else if (key === 'ArrowDown') { if (r < 8) selectCell(r + 1, c); event.preventDefault(); }
-    else if (key === 'ArrowLeft') { if (c < 8) selectCell(r, c + 1); event.preventDefault(); }
-    else if (key === 'ArrowRight') { if (c > 0) selectCell(r, c - 1); event.preventDefault(); }
+    else if (key === 'ArrowLeft') { if (c > 0) selectCell(r, c - 1); event.preventDefault(); }
+    else if (key === 'ArrowRight') { if (c < 8) selectCell(r, c + 1); event.preventDefault(); }
   }
 
   function handleVisibilityChange() {
@@ -581,7 +598,6 @@
 
     createBoardElement();
 
-    dom.board.addEventListener('click', handleBoardClick);
     document.querySelector('.number-pad').addEventListener('click', handleNumberPad);
     $('eraseBtn').addEventListener('click', eraseCell);
     $('undoBtn').addEventListener('click', undoMove);
