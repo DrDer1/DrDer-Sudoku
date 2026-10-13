@@ -1,7 +1,3 @@
-// DrDer-Sudoku app.js
-// واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
-// الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع) لا بمطابقة حل مخزّن.
-// التلميح يعمل على الخانة المحددة إن وُجدت، ويقرأ اللوحة بوضعها الحالي.
 
 (function () {
   'use strict';
@@ -174,11 +170,17 @@
         if (v === 0) continue;
         var duplicate = false;
         for (cc = 0; cc < 9; cc++) {
-          if (cc !== c && state.playerBoard[r][cc] === v) { duplicate = true; break; }
+          if (cc !== c && state.playerBoard[r][cc] === v) {
+            duplicate = true;
+            break;
+          }
         }
         if (!duplicate) {
           for (rr = 0; rr < 9; rr++) {
-            if (rr !== r && state.playerBoard[rr][c] === v) { duplicate = true; break; }
+            if (rr !== r && state.playerBoard[rr][c] === v) {
+              duplicate = true;
+              break;
+            }
           }
         }
         if (!duplicate) {
@@ -295,86 +297,100 @@
     persistProgress();
   }
 
-  // يتحقق أن وضع رقم في خانة لا يجعل اللوحة غير قابلة للحل.
-  // يعمل على نسخة مؤقتة، ولا يُغيّر الحالة الفعلية.
+  // يتحقق من صلاحية الرقم وفق الرقعة الحالية فقط.
+  // لا يعتمد على الحل المخزن ولا يغيّر أي خانة أخرى.
   function isSafePlacement(row, col, num) {
-    var temp = cloneGrid(state.playerBoard);
-    temp[row][col] = num;
-    var result = solveBoard(temp);
-    return !!(result && result.solved && result.board);
-  }
+    if (!isValidCoordinate(row, col)) return false;
+    if (!isPlainInt(num) || num < 1 || num > 9) return false;
+    if (!isValidBoardShape(state.playerBoard)) return false;
 
-  // حساب المرشحين الصالحين لخانة معينة اعتمادًا على اللوحة الحالية.
-  // يستخدم getCandidates من المحرك، فيحترم الصف والعمود والمربع.
-  function getSafeCandidatesForCell(row, col) {
-    var raw = getCandidates(state.playerBoard, row, col);
-    var safe = [];
-    for (var i = 0; i < raw.length; i++) {
-      if (isSafePlacement(row, col, raw[i])) {
-        safe.push(raw[i]);
-      }
+    var current = state.playerBoard[row][col];
+    if (current !== 0 && current !== num) return false;
+
+    for (var c = 0; c < 9; c++) {
+      if (c !== col && state.playerBoard[row][c] === num) return false;
     }
-    return safe;
-  }
 
-  // البحث في كل اللوحة عن خانة لها مرشح واحد فقط ومؤكد أنه آمن.
-  // يُستخدم فقط عندما لا يكون هناك خانة محددة.
-  function findGlobalNakedSingle() {
     for (var r = 0; r < 9; r++) {
-      for (var c = 0; c < 9; c++) {
-        if (state.playerBoard[r][c] !== 0) continue;
-        if (state.givenCells[r][c]) continue;
-        var safe = getSafeCandidatesForCell(r, c);
-        if (safe.length === 1) {
-          return { row: r, col: c, num: safe[0] };
+      if (r !== row && state.playerBoard[r][col] === num) return false;
+    }
+
+    var boxRow = Math.floor(row / 3) * 3;
+    var boxCol = Math.floor(col / 3) * 3;
+
+    for (var br = boxRow; br < boxRow + 3; br++) {
+      for (var bc = boxCol; bc < boxCol + 3; bc++) {
+        if ((br !== row || bc !== col) && state.playerBoard[br][bc] === num) {
+          return false;
         }
       }
     }
-    return null;
+
+    return true;
+  }
+
+  // يعيد كل الأرقام التي لا تتعارض مع أرقام الرقعة الحالية.
+  function getSafeCandidatesForCell(row, col) {
+    if (!isValidCoordinate(row, col)) return [];
+    if (state.playerBoard[row][col] !== 0) return [];
+
+    var candidates = [];
+    for (var num = 1; num <= 9; num++) {
+      if (isSafePlacement(row, col, num)) candidates.push(num);
+    }
+    return candidates;
   }
 
   function applyHintCell(cell) {
+    if (!cell || !isValidCoordinate(cell.row, cell.col)) return false;
+    if (!isPlainInt(cell.num) || cell.num < 1 || cell.num > 9) return false;
+
     var row = cell.row;
     var col = cell.col;
-    var num = cell.num;
-    var prev = state.playerBoard[row][col];
-    if (prev === num) return false;
 
-    state.playerBoard[row][col] = num;
-    recordHistory({ row: row, col: col, previous: prev });
+    if (state.givenCells[row][col]) return false;
+    if (state.playerBoard[row][col] !== 0) return false;
+
+    // أعد التحقق قبل التعديل، لمنع إدخال أي رقم متعارض.
+    if (!isSafePlacement(row, col, cell.num)) return false;
+
+    var previous = state.playerBoard[row][col];
+    state.playerBoard[row][col] = cell.num;
+    recordHistory({ row: row, col: col, previous: previous });
     state.hintedCells[row + '_' + col] = true;
     state.selected = { row: row, col: col };
+
     renderBoard();
     checkWin();
     persistProgress();
     return true;
   }
 
-  // applyHint:
-  // 1) إذا كانت هناك خانة محددة وليست معطاة:
-  //    - يُحسب المرشحون الآمنون وفق اللوحة الحالية.
-  //    - إذا كان المرشح واحدًا فقط، يُوضع.
-  //    - وإلا فلا يُغيّر أي شيء.
-  // 2) إذا لم توجد خانة محددة:
-  //    - يبحث في كل اللوحة عن أي خانة لها مرشح واحد آمن فقط.
-  // لا يعتمد على أي حل مخزّن، ولا يعتمد على Hidden Singles،
-  // حتى لا يقفز إلى خانات لم يحدّدها المستخدم.
+  // التلميح يعمل على الخانة المحددة حصراً.
+  // لا ينتقل إلى خانة أخرى ولا يعتمد على solution المخزّن.
+  // إذا احتوت الخانة على رقم أو لم يوجد مرشح صالح، فلا يغيّر الرقعة.
   function applyHint() {
     if (state.paused || state.won) return;
+    if (!state.selected) return;
 
-    var sel = state.selected;
-    if (sel && !state.givenCells[sel.row][sel.col] && state.playerBoard[sel.row][sel.col] === 0) {
-      var safe = getSafeCandidatesForCell(sel.row, sel.col);
-      if (safe.length === 1) {
-        applyHintCell({ row: sel.row, col: sel.col, num: safe[0] });
-      }
-      return;
-    }
+    var row = state.selected.row;
+    var col = state.selected.col;
 
-    var global = findGlobalNakedSingle();
-    if (global) {
-      applyHintCell(global);
-    }
+    if (!isValidCoordinate(row, col)) return;
+    if (state.givenCells[row][col]) return;
+    if (state.playerBoard[row][col] !== 0) return;
+
+    var candidates = getSafeCandidatesForCell(row, col);
+
+    // لا نخترع رقماً إذا كانت هناك احتمالات متعددة؛
+    // قواعد الصف والعمود والمربع وحدها لا تحدد حلاً وحيداً في هذه الحالة.
+    if (candidates.length !== 1) return;
+
+    applyHintCell({
+      row: row,
+      col: col,
+      num: candidates[0]
+    });
   }
 
   function togglePause() {
@@ -420,7 +436,7 @@
       }
     }
 
-    if (!validateBoard(state.playerBoard)) return;
+    if (!validateSolvedBoard(state.playerBoard)) return;
 
     state.won = true;
     stopTimer();
