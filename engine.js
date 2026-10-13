@@ -1,9 +1,8 @@
-
 /* DrDer-Sudoku engine.js
  * محرك سودوكو مستقل عن الواجهة.
- * لا يحلل الصعوبة المنطقية أثناء توليد المراحل.
- * يسمح بتعدد الحلول الصحيحة افتراضياً.
- * يدعم حساب المرشحين والتحقق من اللوحة الحالية.
+ * التلميح يحترم جميع إدخالات المستخدم.
+ * لا يعيد التلميح رقماً إلا إذا كان ثابتاً
+ * في جميع الحلول المتوافقة مع اللوحة الحالية.
  */
 
 var DIFFICULTY_TARGETS = {
@@ -161,8 +160,6 @@ function isValidMove(board, row, col, num) {
   return true;
 }
 
-/* المرشحون يحسبون دائماً من اللوحة الحالية،
-   وليس من الحل المحفوظ عند إنشاء المرحلة. */
 function getCandidates(board, row, col) {
   if (!isValidBoardShape(board)) return [];
   if (!isValidCoordinate(row, col)) return [];
@@ -268,7 +265,6 @@ function candidatesConsistent(board, candidates) {
     }
   }
 
-  /* كل رقم غير موجود في الوحدة يجب أن تتوفر له خانة مرشحة. */
   for (var unit = 0; unit < 27; unit++) {
     var cells = [];
 
@@ -341,14 +337,9 @@ function refreshCandidates(board, candidates) {
     }
 
     for (var c = 0; c < 9; c++) {
-      if (board[r][c] !== 0) {
-        candidates[r][c] = null;
-        continue;
-      }
-
-      /* المرشح الصحيح هو ما لا يتعارض مع اللوحة الحالية.
-         لا نحتفظ بأي رقم يخالف الصف أو العمود أو المربع. */
-      candidates[r][c] = fresh[r][c].slice();
+      candidates[r][c] = board[r][c] === 0
+        ? fresh[r][c].slice()
+        : null;
     }
   }
 
@@ -397,86 +388,96 @@ function findBestEmptyCell(board) {
   return best;
 }
 
-function solveBoard(board) {
+/*
+ * البحث عن الحلول المتوافقة مع لوحة المستخدم.
+ * يمكن تحديد خلية مستهدفة لاختبار القيم الممكنة فيها.
+ * يتوقف البحث عند بلوغ الحد المطلوب.
+ */
+function findSolutions(board, limit, targetRow, targetCol) {
   if (!validateBoard(board)) {
-    return { solved: false, board: null };
-  }
-
-  var work = cloneBoard(board);
-
-  if (!work) return { solved: false, board: null };
-
-  function backtrack() {
-    var best = findBestEmptyCell(work);
-
-    if (best === null) {
-      return validateSolvedBoard(work);
-    }
-
-    if (best.candidates.length === 0) return false;
-
-    var row = best.row;
-    var col = best.col;
-
-    for (var i = 0; i < best.candidates.length; i++) {
-      work[row][col] = best.candidates[i];
-
-      if (backtrack()) return true;
-
-      work[row][col] = 0;
-    }
-
-    return false;
-  }
-
-  if (backtrack()) {
     return {
-      solved: true,
-      board: cloneBoard(work)
+      count: 0,
+      solutions: [],
+      targetValues: []
     };
   }
 
-  return { solved: false, board: null };
-}
-
-function countSolutions(board, limit) {
-  if (!validateBoard(board)) return 0;
-
   var max = isPlainInt(limit) && limit > 0 ? limit : 2;
   var work = cloneBoard(board);
-  var count = 0;
+  var solutions = [];
+  var targetValues = [];
+  var hasTarget = isValidCoordinate(targetRow, targetCol);
 
   function backtrack() {
-    if (count >= max) return;
+    if (solutions.length >= max) return;
 
     var best = findBestEmptyCell(work);
 
     if (best === null) {
-      if (validateSolvedBoard(work)) count++;
+      if (validateSolvedBoard(work)) {
+        solutions.push(cloneBoard(work));
+
+        if (hasTarget) {
+          var value = work[targetRow][targetCol];
+
+          if (targetValues.indexOf(value) === -1) {
+            targetValues.push(value);
+          }
+        }
+      }
+
       return;
     }
 
     if (best.candidates.length === 0) return;
 
-    var row = best.row;
-    var col = best.col;
-
     for (var i = 0; i < best.candidates.length; i++) {
-      work[row][col] = best.candidates[i];
-      backtrack();
-      work[row][col] = 0;
+      work[best.row][best.col] = best.candidates[i];
 
-      if (count >= max) return;
+      backtrack();
+
+      work[best.row][best.col] = 0;
+
+      if (solutions.length >= max) return;
     }
   }
 
   backtrack();
-  return count;
+
+  return {
+    count: solutions.length,
+    solutions: solutions,
+    targetValues: targetValues
+  };
 }
 
-/* تلميح لخانة بعينها.
-   يعيد رقماً صالحاً وفق جميع القيم الحالية في اللوحة.
-   لا يختار خانة عشوائية ولا يعتمد على solution محفوظ. */
+function solveBoard(board) {
+  var result = findSolutions(board, 1);
+
+  if (result.count === 0) {
+    return { solved: false, board: null };
+  }
+
+  return {
+    solved: true,
+    board: cloneBoard(result.solutions[0])
+  };
+}
+
+function countSolutions(board, limit) {
+  var max = isPlainInt(limit) && limit > 0 ? limit : 2;
+  return findSolutions(board, max).count;
+}
+
+/*
+ * التلميح الآمن:
+ * 1. يحترم كل الأرقام الموجودة في اللوحة.
+ * 2. يرفض اللوحة المتعارضة أو غير القابلة للحل.
+ * 3. يفحص جميع الحلول الممكنة.
+ * 4. يعيد الرقم فقط إذا اتفقت الحلول كلها على القيمة نفسها.
+ *
+ * null تعني أن التلميح غير آمن أو غير قابل للتحديد.
+ */
 function getHintForCell(board, row, col) {
   if (!isValidBoardShape(board)) return null;
   if (!isValidCoordinate(row, col)) return null;
@@ -487,22 +488,36 @@ function getHintForCell(board, row, col) {
 
   if (candidates.length === 0) return null;
 
-  /* حل اللوحة الحالية، مع احترام كل إدخالات اللاعب. */
-  var result = solveBoard(board);
+  /*
+   * لا نكتفي بعدّ حلين هنا؛ فقد يكون الرقمان المختلفان
+   * في خلية أخرى، بينما الخلية المحددة ثابتة في جميع الحلول.
+   * لذلك نفحص القيم الممكنة للخلية المستهدفة مباشرة.
+   */
+  var possibleValues = [];
 
-  if (!result || !result.solved || !result.board) return null;
+  for (var i = 0; i < candidates.length; i++) {
+    var candidate = candidates[i];
+    var testBoard = cloneBoard(board);
 
-  var value = result.board[row][col];
+    testBoard[row][col] = candidate;
 
-  if (!isPlainInt(value) || value < 1 || value > 9) {
-    return null;
+    if (countSolutions(testBoard, 1) > 0) {
+      possibleValues.push(candidate);
+    }
+
+    if (possibleValues.length > 1) {
+      return null;
+    }
   }
 
-  /* تحقق نهائي قبل إعادة التلميح. */
-  if (candidates.indexOf(value) === -1) return null;
-  if (!isValidMove(board, row, col, value)) return null;
+  if (possibleValues.length !== 1) return null;
 
-  return value;
+  var answer = possibleValues[0];
+
+  if (candidates.indexOf(answer) === -1) return null;
+  if (!isValidMove(board, row, col, answer)) return null;
+
+  return answer;
 }
 
 function createRng(seed) {
@@ -602,11 +617,7 @@ function countEmptyCells(board) {
   return count;
 }
 
-/* إزالة الأرقام لا تحتاج إلى تحليل الحلول.
-   كل لغز مشتق من لوحة مكتملة صحيحة يبقى قابلاً للحل،
-   حتى لو أصبح له أكثر من حل. */
 function removeCells(solution, difficulty, rng, options) {
-  var opts = options || {};
   var target = isDifficultyName(difficulty)
     ? DIFFICULTY_TARGETS[difficulty]
     : DIFFICULTY_TARGETS.medium;
@@ -653,8 +664,8 @@ function removeCells(solution, difficulty, rng, options) {
   return {
     puzzle: puzzle,
     emptyCells: empty,
-    unique: false,
-    solvable: true,
+    unique: countSolutions(puzzle, 2) === 1,
+    solvable: countSolutions(puzzle, 1) > 0,
     targetReached: empty >= target.min && empty <= target.max,
     targetMin: target.min,
     targetMax: target.max
@@ -694,9 +705,9 @@ function generatePuzzle(options) {
       actualDifficulty: null,
       seed: seed,
       emptyCells: removal.emptyCells,
-      unique: false,
-      solvable: true,
-      multiSolution: true,
+      unique: removal.unique,
+      solvable: removal.solvable,
+      multiSolution: !removal.unique,
       targetReached: removal.targetReached,
       targetMin: removal.targetMin,
       targetMax: removal.targetMax,
@@ -727,8 +738,6 @@ function generatePuzzle(options) {
   };
 }
 
-/* الإبقاء على أسماء دوال التوافق القديمة.
-   لا يجري تحليل الصعوبة؛ actualDifficulty وrating غير محددين. */
 function rateDifficulty(puzzle) {
   if (!validateBoard(puzzle)) {
     return {
@@ -856,9 +865,9 @@ function createLevel(level, difficulty, options) {
     puzzle: result.puzzle,
     solution: result.solution,
     emptyCells: result.emptyCells,
-    unique: false,
-    solvable: true,
-    multiSolution: true,
+    unique: result.unique,
+    solvable: result.solvable,
+    multiSolution: result.multiSolution,
     rating: null,
     signature: createLevelSignature(result.puzzle),
     fallback: result.fallback === true,
