@@ -1,5 +1,6 @@
 // DrDer-Sudoku app.js
 // واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
+// الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع) لا بمطابقة حل مخزّن.
 
 (function () {
   'use strict';
@@ -111,10 +112,6 @@
     dom.timerDisplay.textContent = formatTime(total);
   }
 
-  // إنشاء الخلايا الـ81 مرة واحدة فقط عند التهيئة.
-  // الترتيب: صف 0 من العمود 0 إلى 8، ثم صف 1، وهكذا.
-  // الشبكة تُعرض باتجاه LTR لضمان أن الخلية رقم 0 تقع في الزاوية العليا اليسرى،
-  // وتأتي الفواصل الذهبية في أماكنها الصحيحة بعد كل ثلاثة أعمدة وثلاثة صفوف.
   function createBoardElement() {
     var board = $('sudokuBoard');
     board.innerHTML = '';
@@ -147,8 +144,6 @@
     return cellsMatrix[row][col];
   }
 
-  // تحديث محتوى الخلايا وحالاتها البصرية فقط.
-  // لا يُعاد بناء الهيكل، ولا تُضاف مستمعات جديدة، ولا تتأثر الحدود الذهبية.
   function renderBoard() {
     var r, c, el, value;
     for (r = 0; r < 9; r++) {
@@ -167,27 +162,30 @@
     updateProgress();
   }
 
+  // computeConflicts: يكتشف الأرقام المتعارضة مع قواعد السودوكو الثلاث.
+  // يشمل الخلايا الأصلية واللاعب معًا لإظهار التعارض الصحيح.
   function computeConflicts() {
     var conflicts = {};
-    for (var r = 0; r < 9; r++) {
-      for (var c = 0; c < 9; c++) {
-        var v = state.playerBoard[r][c];
+    var r, c, v, cc, rr, br, bc, boxRow, boxCol;
+
+    for (r = 0; r < 9; r++) {
+      for (c = 0; c < 9; c++) {
+        v = state.playerBoard[r][c];
         if (v === 0) continue;
-        if (state.givenCells[r][c]) continue;
         var duplicate = false;
-        for (var cc = 0; cc < 9; cc++) {
+        for (cc = 0; cc < 9; cc++) {
           if (cc !== c && state.playerBoard[r][cc] === v) { duplicate = true; break; }
         }
         if (!duplicate) {
-          for (var rr = 0; rr < 9; rr++) {
+          for (rr = 0; rr < 9; rr++) {
             if (rr !== r && state.playerBoard[rr][c] === v) { duplicate = true; break; }
           }
         }
         if (!duplicate) {
-          var boxRow = Math.floor(r / 3) * 3;
-          var boxCol = Math.floor(c / 3) * 3;
-          for (var br = boxRow; br < boxRow + 3 && !duplicate; br++) {
-            for (var bc = boxCol; bc < boxCol + 3; bc++) {
+          boxRow = Math.floor(r / 3) * 3;
+          boxCol = Math.floor(c / 3) * 3;
+          for (br = boxRow; br < boxRow + 3 && !duplicate; br++) {
+            for (bc = boxCol; bc < boxCol + 3; bc++) {
               if ((br !== r || bc !== c) && state.playerBoard[br][bc] === v) {
                 duplicate = true;
                 break;
@@ -299,17 +297,26 @@
     persistProgress();
   }
 
+  // applyHint: يقدم تلميحًا صحيحًا وفق قواعد السودوكو دون الاعتماد على حل مخزّن.
+  // يحاول أولاً إيجاد حل صالح من الحالة الحالية للوحة اللاعب عبر solveBoard،
+  // وإن تعذّر ذلك (بسبب تعارضات أو خلايا فارغة بلا مرشح) فلا يغيّر أي شيء.
   function applyHint() {
     if (state.paused || state.won) return;
-    if (!state.solution) return;
+    if (!state.playerBoard) return;
+
+    var solveResult = solveBoard(state.playerBoard);
+    if (!solveResult || !solveResult.solved || !solveResult.board) {
+      return;
+    }
+    var workingSolution = solveResult.board;
 
     var target = state.selected;
     if (target && state.givenCells[target.row][target.col]) target = null;
-    if (target && state.playerBoard[target.row][target.col] === state.solution[target.row][target.col]) target = null;
+    if (target && state.playerBoard[target.row][target.col] === workingSolution[target.row][target.col]) target = null;
 
     if (!target) {
       var best = null;
-      for (var r = 0; r < 9; r++) {
+      for (var r = 0; r < 9 && !best; r++) {
         for (var c = 0; c < 9; c++) {
           if (state.givenCells[r][c]) continue;
           if (state.playerBoard[r][c] === 0) {
@@ -317,18 +324,16 @@
             break;
           }
         }
-        if (best) break;
       }
       if (!best) {
-        for (var r2 = 0; r2 < 9; r2++) {
+        for (var r2 = 0; r2 < 9 && !best; r2++) {
           for (var c2 = 0; c2 < 9; c2++) {
             if (state.givenCells[r2][c2]) continue;
-            if (state.playerBoard[r2][c2] !== state.solution[r2][c2]) {
+            if (state.playerBoard[r2][c2] !== workingSolution[r2][c2]) {
               best = { row: r2, col: c2 };
               break;
             }
           }
-          if (best) break;
         }
       }
       target = best;
@@ -336,7 +341,7 @@
 
     if (!target) return;
 
-    var correct = state.solution[target.row][target.col];
+    var correct = workingSolution[target.row][target.col];
     var prev = state.playerBoard[target.row][target.col];
     if (prev === correct) return;
 
@@ -383,14 +388,19 @@
     persistProgress();
   }
 
+  // checkWin: يعتمد على اكتمال اللوحة وصحتها وفق قواعد السودوكو فقط.
+  // لا يقارن اللوحة بأي حل مخزّن.
   function checkWin() {
     if (state.won) return;
+
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
         if (state.playerBoard[r][c] === 0) return;
-        if (state.playerBoard[r][c] !== state.solution[r][c]) return;
       }
     }
+
+    if (!validateBoard(state.playerBoard)) return;
+
     state.won = true;
     stopTimer();
     var time = state.elapsedSeconds;
@@ -422,11 +432,33 @@
   function loadLevel(level) {
     var difficulty = getDifficultyForLevel(level);
     var baseSeed = 'DrDer-Sudoku-v1';
-    var result = createLevel(level, difficulty, { baseSeed: baseSeed, maxAttempts: 10 });
+    var result = createLevel(level, difficulty, {
+      baseSeed: baseSeed,
+      maxAttempts: 10,
+      allowMultipleSolutions: true
+    });
 
-    if (!result || result.failed || !result.puzzle || !result.solution) {
+    if (!result || result.failed || !result.puzzle) {
       return false;
     }
+
+    // إذا لم يكن للمحرك حل مخزّن صالح (بسبب تعدد الحلول)، نحسب حلًا مرجعيًا لحظيًا.
+    var solution = null;
+    if (result.solution) {
+      solution = cloneGrid(result.solution);
+    } else {
+      var solved = solveBoard(result.puzzle);
+      if (solved && solved.solved && solved.board) {
+        solution = cloneGrid(solved.board);
+      }
+    }
+    if (!solution) {
+      var solved2 = solveBoard(result.puzzle);
+      if (solved2 && solved2.solved && solved2.board) {
+        solution = cloneGrid(solved2.board);
+      }
+    }
+    if (!solution) return false;
 
     state.level = level;
     state.difficulty = isDifficultyName(result.actualDifficulty)
@@ -434,7 +466,7 @@
       : (isDifficultyName(result.requestedDifficulty) ? result.requestedDifficulty : difficulty);
     state.seed = result.seed;
     state.puzzle = cloneGrid(result.puzzle);
-    state.solution = cloneGrid(result.solution);
+    state.solution = solution;
     state.playerBoard = cloneGrid(result.puzzle);
     state.givenCells = buildGivenMap(result.puzzle);
     state.history = [];
@@ -473,21 +505,36 @@
     persistProgress();
   }
 
+  // resumeSavedProgress: يستعيد التقدم دون الاعتماد على تطابق playerBoard مع solution.
+  // يعتمد على قواعد السودوكو لضمان أن اللوحة المحفوظة صالحة بنيويًا.
   function resumeSavedProgress() {
     var saved = loadProgress();
     if (!saved) return false;
 
     var difficulty = isDifficultyName(saved.difficulty) ? saved.difficulty : getDifficultyForLevel(saved.level);
     var baseSeed = 'DrDer-Sudoku-v1';
-    var levelData = createLevel(saved.level, difficulty, { baseSeed: baseSeed, maxAttempts: 10 });
+    var levelData = createLevel(saved.level, difficulty, {
+      baseSeed: baseSeed,
+      maxAttempts: 10,
+      allowMultipleSolutions: true
+    });
 
     var solution = null;
-    if (levelData && !levelData.failed && levelData.solution && levelData.seed === saved.seed) {
-      solution = cloneGrid(levelData.solution);
-    } else {
-      var solved = solveBoard(saved.puzzle);
-      if (solved && solved.solved) {
-        solution = cloneGrid(solved.board);
+    if (levelData && !levelData.failed && levelData.puzzle && levelData.seed === saved.seed) {
+      if (levelData.solution) {
+        solution = cloneGrid(levelData.solution);
+      } else {
+        var solvedLevel = solveBoard(levelData.puzzle);
+        if (solvedLevel && solvedLevel.solved && solvedLevel.board) {
+          solution = cloneGrid(solvedLevel.board);
+        }
+      }
+    }
+
+    if (!solution) {
+      var solvedSaved = solveBoard(saved.puzzle);
+      if (solvedSaved && solvedSaved.solved && solvedSaved.board) {
+        solution = cloneGrid(solvedSaved.board);
       }
     }
 
