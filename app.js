@@ -603,6 +603,24 @@
     return true;
   }
 
+  // يتحقق من تطابق الحل المرجعي مع الأرقام الأصلية للغز.
+  function solutionMatchesPuzzle(solution, puzzle) {
+    if (!isCompleteValidSolution(solution)) return false;
+    if (!isValidBoardShape(puzzle)) return false;
+
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var given = puzzle[r][c];
+
+        if (given !== 0 && solution[r][c] !== given) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   // يعرض رسالة مناسبة للمستخدم.
   function showHintMessage(message) {
     window.alert(message);
@@ -610,8 +628,7 @@
 
   /*
    * فحص وجود حل للوحة الحالية.
-   * يستخدم عند الحاجة إلى التحقق من سلامة اللوحة،
-   * وليس لاختيار رقم التلميح.
+   * هذه الدالة لا تستخدم لاختيار رقم التلميح.
    */
   function solveCurrentBoard() {
     if (typeof solveBoard !== 'function') {
@@ -679,15 +696,15 @@
     };
   }
 
-  // يطبّق التلميح على الخلية المحددة فقط.
+  // يطبّق التلميح من الحل المرجعي، حتى لو تعارض مع إدخالات اللاعب.
   function applyHintCell(row, col, num) {
     if (!isValidCoordinate(row, col)) return false;
     if (!isPlainInt(num) || num < 1 || num > 9) return false;
     if (!state.givenCells || state.givenCells[row][col]) return false;
     if (state.playerBoard[row][col] !== 0) return false;
 
-    if (!isSafePlacement(row, col, num)) return false;
-
+    // لا نستعمل isSafePlacement هنا؛ لأن التلميح يجب أن يعمل
+    // حتى عندما توجد أرقام متعارضة أدخلها اللاعب في خلايا أخرى.
     var previous = state.playerBoard[row][col];
 
     state.playerBoard[row][col] = num;
@@ -709,9 +726,10 @@
   }
 
   /*
-   * التلميح الآمن:
-   * يستخدم getHintForCell من engine.js.
-   * لا يعتمد على state.solution أو أول حل فقط.
+   * التلميح المرجعي:
+   * يأخذ الرقم مباشرة من state.solution.
+   * لا يعتمد على getHintForCell أو حل لوحة اللاعب.
+   * لا يرفض التلميح بسبب التعارضات في إدخالات اللاعب.
    */
   function applyHint() {
     if (state.paused || state.won) return;
@@ -726,6 +744,15 @@
 
     if (!isValidCoordinate(row, col)) {
       showHintMessage('تعذر تحديد الخلية. حاول تحديدها مرة أخرى.');
+      return;
+    }
+
+    if (
+      !state.givenCells ||
+      !state.playerBoard ||
+      !state.puzzle
+    ) {
+      showHintMessage('بيانات المرحلة غير مكتملة. أعد تحميل المرحلة.');
       return;
     }
 
@@ -748,79 +775,24 @@
       return;
     }
 
-    var conflicts = computeConflicts(state.playerBoard);
-
-    if (Object.keys(conflicts).length > 0) {
+    // نتحقق من الحل المرجعي للمرحلة نفسها، وليس من إدخالات اللاعب.
+    if (!solutionMatchesPuzzle(state.solution, state.puzzle)) {
       showHintMessage(
-        'توجد أرقام متعارضة في الرقعة. صحح التعارضات أولاً ثم اطلب التلميح.'
+        'الحل المرجعي للمرحلة غير صالح أو لا يطابق الأرقام الأصلية. لم يتم تغيير الرقعة.'
       );
       return;
     }
 
-    if (typeof getHintForCell !== 'function') {
-      showHintMessage(
-        'دالة التلميح الآمن غير متاحة. تأكد من تحميل engine.js الصحيح.'
-      );
-      return;
-    }
-
-    var hint;
-
-    try {
-      hint = getHintForCell(
-        cloneGrid(state.playerBoard),
-        row,
-        col
-      );
-    } catch (error) {
-      showHintMessage(
-        'حدث خطأ أثناء تحليل الرقعة. لم يتم تغيير أي رقم.'
-      );
-      return;
-    }
-
-    if (hint === null || hint === undefined) {
-      var solved = solveCurrentBoard();
-
-      if (!solved.ok) {
-        if (solved.reason === 'engine') {
-          showHintMessage(
-            'محرك الحل غير متاح. تأكد من تحميل engine.js.'
-          );
-        } else if (solved.reason === 'invalid-solution') {
-          showHintMessage(
-            'تعذر التحقق من الحل الناتج عن المحرك.'
-          );
-        } else {
-          showHintMessage(
-            'لا يوجد حل متوافق مع الأرقام الحالية. راجع الأرقام التي أدخلتها.'
-          );
-        }
-
-        return;
-      }
-
-      showHintMessage(
-        'هذه الخلية قد تحتمل أكثر من قيمة في الحلول الممكنة، لذلك لن أفرض عليك رقماً واحداً. اختر خلية أخرى للحصول على تلميح آمن.'
-      );
-
-      return;
-    }
+    var hint = state.solution[row][col];
 
     if (!isPlainInt(hint) || hint < 1 || hint > 9) {
       showHintMessage(
-        'أعاد المحرك قيمة غير صالحة. لم يتم تغيير الرقعة.'
+        'لا يوجد رقم صالح لهذه الخلية في الحل المرجعي.'
       );
       return;
     }
 
-    if (!isSafePlacement(row, col, hint)) {
-      showHintMessage(
-        'الرقم المقترح يتعارض مع الرقعة الحالية. لم يتم تغيير أي رقم.'
-      );
-      return;
-    }
-
+    // يضع الرقم المرجعي حتى لو تعارض مع رقم في صف أو عمود أو مربع آخر.
     if (!applyHintCell(row, col, hint)) {
       showHintMessage(
         'تعذر تطبيق التلميح. لم يتم تغيير الرقعة.'
