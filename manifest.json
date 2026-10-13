@@ -1,0 +1,27 @@
+{
+  "name": "DrDer-Sudoku",
+  "short_name": "DrDer Sudoku",
+  "description": "لعبة سودوكو عربية تعمل دون اتصال بالإنترنت.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B0B0D",
+  "theme_color": "#D4AF37",
+  "icons": [
+    {
+      "src": "192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
