@@ -1,8 +1,7 @@
 // DrDer-Sudoku app.js
 // واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
 // الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع) لا بمطابقة حل مخزّن.
-// التلميح يعتمد على استنتاجات منطقية إلزامية (Naked Single وHidden Single)
-// مع فحص إضافي: يجب أن يبقى اللغز قابلًا للحل بعد إدخال الرقم.
+// التلميح يعمل على الخانة المحددة إن وُجدت، ويقرأ اللوحة بوضعها الحالي.
 
 (function () {
   'use strict';
@@ -296,108 +295,41 @@
     persistProgress();
   }
 
-  // يتحقق أن وضع رقم معين في خلية لا يجعل اللوحة غير قابلة للحل.
-  // يستخدم نسخة مؤقتة من اللوحة، فلا يُغيّر الحالة الفعلية.
-  function isSafeHintPlacement(row, col, num) {
+  // يتحقق أن وضع رقم في خانة لا يجعل اللوحة غير قابلة للحل.
+  // يعمل على نسخة مؤقتة، ولا يُغيّر الحالة الفعلية.
+  function isSafePlacement(row, col, num) {
     var temp = cloneGrid(state.playerBoard);
     temp[row][col] = num;
     var result = solveBoard(temp);
-    return result && result.solved && result.board;
+    return !!(result && result.solved && result.board);
   }
 
-  // يبحث عن Naked Single مع فحص الأمان.
-  function findLocalNakedSingle() {
+  // حساب المرشحين الصالحين لخانة معينة اعتمادًا على اللوحة الحالية.
+  // يستخدم getCandidates من المحرك، فيحترم الصف والعمود والمربع.
+  function getSafeCandidatesForCell(row, col) {
+    var raw = getCandidates(state.playerBoard, row, col);
+    var safe = [];
+    for (var i = 0; i < raw.length; i++) {
+      if (isSafePlacement(row, col, raw[i])) {
+        safe.push(raw[i]);
+      }
+    }
+    return safe;
+  }
+
+  // البحث في كل اللوحة عن خانة لها مرشح واحد فقط ومؤكد أنه آمن.
+  // يُستخدم فقط عندما لا يكون هناك خانة محددة.
+  function findGlobalNakedSingle() {
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
         if (state.playerBoard[r][c] !== 0) continue;
         if (state.givenCells[r][c]) continue;
-        var cands = getCandidates(state.playerBoard, r, c);
-        if (cands.length === 1) {
-          if (isSafeHintPlacement(r, c, cands[0])) {
-            return { row: r, col: c, num: cands[0] };
-          }
+        var safe = getSafeCandidatesForCell(r, c);
+        if (safe.length === 1) {
+          return { row: r, col: c, num: safe[0] };
         }
       }
     }
-    return null;
-  }
-
-  // يبحث عن Hidden Single مع فحص الأمان.
-  function findLocalHiddenSingle() {
-    var r, c, num;
-
-    for (r = 0; r < 9; r++) {
-      for (num = 1; num <= 9; num++) {
-        var has = false;
-        for (c = 0; c < 9; c++) {
-          if (state.playerBoard[r][c] === num) { has = true; break; }
-        }
-        if (has) continue;
-        var count = 0, pos = null;
-        for (c = 0; c < 9; c++) {
-          if (state.playerBoard[r][c] !== 0) continue;
-          if (state.givenCells[r][c]) continue;
-          var candsR = getCandidates(state.playerBoard, r, c);
-          if (candsR.indexOf(num) !== -1) { count++; pos = { row: r, col: c }; }
-        }
-        if (count === 1 && pos) {
-          if (isSafeHintPlacement(pos.row, pos.col, num)) {
-            return { row: pos.row, col: pos.col, num: num };
-          }
-        }
-      }
-    }
-
-    for (c = 0; c < 9; c++) {
-      for (num = 1; num <= 9; num++) {
-        var hasC = false;
-        for (r = 0; r < 9; r++) {
-          if (state.playerBoard[r][c] === num) { hasC = true; break; }
-        }
-        if (hasC) continue;
-        var countC = 0, posC = null;
-        for (r = 0; r < 9; r++) {
-          if (state.playerBoard[r][c] !== 0) continue;
-          if (state.givenCells[r][c]) continue;
-          var candsC = getCandidates(state.playerBoard, r, c);
-          if (candsC.indexOf(num) !== -1) { countC++; posC = { row: r, col: c }; }
-        }
-        if (countC === 1 && posC) {
-          if (isSafeHintPlacement(posC.row, posC.col, num)) {
-            return { row: posC.row, col: posC.col, num: num };
-          }
-        }
-      }
-    }
-
-    for (var br = 0; br < 3; br++) {
-      for (var bc = 0; bc < 3; bc++) {
-        for (num = 1; num <= 9; num++) {
-          var hasB = false;
-          for (r = br * 3; r < br * 3 + 3; r++) {
-            for (c = bc * 3; c < bc * 3 + 3; c++) {
-              if (state.playerBoard[r][c] === num) hasB = true;
-            }
-          }
-          if (hasB) continue;
-          var countB = 0, posB = null;
-          for (r = br * 3; r < br * 3 + 3; r++) {
-            for (c = bc * 3; c < bc * 3 + 3; c++) {
-              if (state.playerBoard[r][c] !== 0) continue;
-              if (state.givenCells[r][c]) continue;
-              var candsB = getCandidates(state.playerBoard, r, c);
-              if (candsB.indexOf(num) !== -1) { countB++; posB = { row: r, col: c }; }
-            }
-          }
-          if (countB === 1 && posB) {
-            if (isSafeHintPlacement(posB.row, posB.col, num)) {
-              return { row: posB.row, col: posB.col, num: num };
-            }
-          }
-        }
-      }
-    }
-
     return null;
   }
 
@@ -418,16 +350,31 @@
     return true;
   }
 
+  // applyHint:
+  // 1) إذا كانت هناك خانة محددة وليست معطاة:
+  //    - يُحسب المرشحون الآمنون وفق اللوحة الحالية.
+  //    - إذا كان المرشح واحدًا فقط، يُوضع.
+  //    - وإلا فلا يُغيّر أي شيء.
+  // 2) إذا لم توجد خانة محددة:
+  //    - يبحث في كل اللوحة عن أي خانة لها مرشح واحد آمن فقط.
+  // لا يعتمد على أي حل مخزّن، ولا يعتمد على Hidden Singles،
+  // حتى لا يقفز إلى خانات لم يحدّدها المستخدم.
   function applyHint() {
     if (state.paused || state.won) return;
 
-    var cell = findLocalNakedSingle();
-    if (cell) { applyHintCell(cell); return; }
+    var sel = state.selected;
+    if (sel && !state.givenCells[sel.row][sel.col] && state.playerBoard[sel.row][sel.col] === 0) {
+      var safe = getSafeCandidatesForCell(sel.row, sel.col);
+      if (safe.length === 1) {
+        applyHintCell({ row: sel.row, col: sel.col, num: safe[0] });
+      }
+      return;
+    }
 
-    cell = findLocalHiddenSingle();
-    if (cell) { applyHintCell(cell); return; }
-
-    return;
+    var global = findGlobalNakedSingle();
+    if (global) {
+      applyHintCell(global);
+    }
   }
 
   function togglePause() {
