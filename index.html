@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B0B0D">
+<meta name="description" content="DrDer Sudoku — لعبة سودوكو عربية تعمل دون اتصال بالإنترنت.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DrDer Sudoku">
+<meta name="mobile-web-app-capable" content="yes">
+<title>DrDer Sudoku</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="192.png">
+<link rel="apple-touch-icon" href="192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header" id="appHeader">
+  <h1 class="app-title">DrDer Sudoku</h1>
+</header>
+
+<main class="app-main">
+
+  <section class="status-bar" aria-label="معلومات المرحلة">
+    <div class="status-item">
+      <span class="status-label">المرحلة</span>
+      <span class="status-value" id="levelDisplay">1</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">الصعوبة</span>
+      <span class="status-value" id="difficultyDisplay">سهل</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">الوقت</span>
+      <span class="status-value" id="timerDisplay">00:00</span>
+    </div>
+    <div class="status-item">
+      <span class="status-label">أفضل</span>
+      <span class="status-value" id="bestTimeDisplay">—</span>
+    </div>
+  </section>
+
+  <section class="board-wrapper" aria-label="شبكة السودوكو">
+    <div class="sudoku-board" id="sudokuBoard" role="grid" aria-label="شبكة سودوكو 9×9"></div>
+  </section>
+
+  <section class="number-pad" aria-label="لوحة الأرقام">
+    <button type="button" class="num-btn" data-num="1">1</button>
+    <button type="button" class="num-btn" data-num="2">2</button>
+    <button type="button" class="num-btn" data-num="3">3</button>
+    <button type="button" class="num-btn" data-num="4">4</button>
+    <button type="button" class="num-btn" data-num="5">5</button>
+    <button type="button" class="num-btn" data-num="6">6</button>
+    <button type="button" class="num-btn" data-num="7">7</button>
+    <button type="button" class="num-btn" data-num="8">8</button>
+    <button type="button" class="num-btn" data-num="9">9</button>
+  </section>
+
+  <section class="actions" aria-label="أدوات اللعب">
+    <button type="button" class="action-btn" id="eraseBtn">مسح</button>
+    <button type="button" class="action-btn" id="undoBtn">تراجع</button>
+    <button type="button" class="action-btn" id="hintBtn">تلميح</button>
+    <button type="button" class="action-btn" id="pauseBtn">إيقاف</button>
+    <button type="button" class="action-btn" id="restartBtn">إعادة</button>
+  </section>
+
+  <section class="progress-bar" aria-label="مؤشر التقدم">
+    <span class="progress-text" id="progressText">0 / 81</span>
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="overlay" id="pauseOverlay" hidden>
+  <div class="overlay-card">
+    <h2 class="overlay-title">اللعبة متوقفة</h2>
+    <p class="overlay-text">اضغط على استكمال للمتابعة.</p>
+    <button type="button" class="primary-btn" id="resumeBtn">استكمال</button>
+  </div>
+</div>
+
+<div class="overlay" id="winOverlay" hidden>
+  <div class="overlay-card">
+    <h2 class="overlay-title">أحسنت!</h2>
+    <p class="overlay-text">أكملت المرحلة بنجاح.</p>
+    <p class="overlay-text">زمن الإكمال: <strong id="winTime">00:00</strong></p>
+    <p class="overlay-text">أفضل زمن: <strong id="winBestTime">—</strong></p>
+    <button type="button" class="primary-btn" id="nextLevelBtn">المرحلة التالية</button>
+  </div>
+</div>
+
+<script src="engine.js"></script>
+<script src="storage.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
