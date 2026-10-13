@@ -58,8 +58,8 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 10px 20px;
+  gap: 8px;
+  padding: 8px;
   max-width: 560px;
   width: 100%;
   margin: 0 auto;
@@ -72,46 +72,47 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 8px 6px;
+  padding: 6px;
 }
 
 .status-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
 .status-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
 }
 
 .status-value {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--gold-light);
   font-variant-numeric: tabular-nums;
 }
 
 .board-wrapper {
+  width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 4px 0;
 }
 
 .sudoku-board {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
   grid-template-rows: repeat(9, 1fr);
-  width: 100%;
-  max-width: 500px;
-  aspect-ratio: 1 / 1;
+  width: min(94vw, calc(100dvh - 340px), 500px);
+  height: min(94vw, calc(100dvh - 340px), 500px);
+  min-width: 240px;
+  min-height: 240px;
   background: var(--bg-card);
   border: 2px solid var(--gold-dark);
-  border-radius: 10px;
+  border-radius: 8px;
   overflow: hidden;
   user-select: none;
   touch-action: manipulation;
@@ -124,7 +125,7 @@ body {
   justify-content: center;
   background: var(--bg-cell);
   border: 1px solid var(--border);
-  font-size: clamp(16px, 5.5vw, 26px);
+  font-size: clamp(14px, 3.6vw, 22px);
   font-weight: 600;
   color: var(--gold-light);
   cursor: pointer;
@@ -180,16 +181,17 @@ body {
 .number-pad {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
-  gap: 6px;
+  gap: 5px;
 }
 
 .num-btn {
   aspect-ratio: 1 / 1;
+  min-height: 36px;
   background: var(--bg-card);
   color: var(--gold-light);
   border: 1px solid var(--gold-dark);
   border-radius: 8px;
-  font-size: clamp(16px, 4.5vw, 22px);
+  font-size: clamp(15px, 4vw, 20px);
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
@@ -210,7 +212,7 @@ body {
 .actions {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: 5px;
 }
 
 .action-btn {
@@ -218,8 +220,8 @@ body {
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 4px;
-  font-size: 13px;
+  padding: 9px 2px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -247,15 +249,15 @@ body {
 .progress-bar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 6px 10px;
 }
 
 .progress-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -344,7 +346,21 @@ body {
     font-size: 22px;
   }
   .status-value {
-    font-size: 16px;
+    font-size: 15px;
+  }
+}
+
+@media (max-height: 700px) {
+  .sudoku-board {
+    width: min(94vw, calc(100dvh - 320px), 460px);
+    height: min(94vw, calc(100dvh - 320px), 460px);
+  }
+  .num-btn {
+    min-height: 32px;
+  }
+  .action-btn {
+    padding: 7px 2px;
+    font-size: 11px;
   }
 }
 
