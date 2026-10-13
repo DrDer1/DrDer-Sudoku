@@ -42,17 +42,17 @@ body {
   z-index: 20;
   background: var(--bg-app);
   border-bottom: 1px solid var(--border);
-  padding: 10px 12px;
+  padding: 14px 12px;
   text-align: center;
 }
 
 .app-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 1px;
   color: var(--gold);
-  text-shadow: 0 0 8px rgba(212, 175, 55, 0.25);
+  text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
 }
 
 .app-main {
@@ -68,7 +68,7 @@ body {
 
 .status-bar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -141,7 +141,6 @@ body {
   transition: background-color 0.12s ease, color 0.12s ease;
   min-width: 0;
   min-height: 0;
-  box-shadow: none;
 }
 
 .cell.box-right {
@@ -350,7 +349,7 @@ body {
 
 @media (min-width: 480px) {
   .app-title {
-    font-size: 22px;
+    font-size: 34px;
   }
   .status-value {
     font-size: 15px;
