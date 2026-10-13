@@ -1,3 +1,6 @@
+// DrDer-Sudoku app.js
+// واجهة اللعبة ومنطق التفاعل.
+// يعتمد على engine.js وstorage.js.
 
 (function () {
   'use strict';
@@ -37,26 +40,30 @@
   }
 
   function cloneGrid(grid) {
+    if (!isValidBoardShape(grid)) return null;
+
     var copy = [];
+
     for (var r = 0; r < 9; r++) {
-      var row = [];
-      for (var c = 0; c < 9; c++) {
-        row.push(grid[r][c]);
-      }
-      copy.push(row);
+      copy.push(grid[r].slice());
     }
+
     return copy;
   }
 
   function buildGivenMap(puzzle) {
     var map = [];
+
     for (var r = 0; r < 9; r++) {
       var row = [];
+
       for (var c = 0; c < 9; c++) {
         row.push(puzzle[r][c] !== 0);
       }
+
       map.push(row);
     }
+
     return map;
   }
 
@@ -66,6 +73,7 @@
     var rem = s % 60;
     var mm = m < 10 ? '0' + m : String(m);
     var ss = rem < 10 ? '0' + rem : String(rem);
+
     return mm + ':' + ss;
   }
 
@@ -77,6 +85,7 @@
 
   function startTimer() {
     if (state.won || state.paused || state.timerRunning) return;
+
     state.timerRunning = true;
     state.timerStartedAt = Date.now();
   }
@@ -85,17 +94,20 @@
     if (!state.timerRunning) return;
 
     var now = Date.now();
+
     state.elapsedSeconds += Math.floor(
       (now - state.timerStartedAt) / 1000
     );
 
     state.timerRunning = false;
     state.timerStartedAt = 0;
+
     updateTimerDisplay();
   }
 
   function resumeTimer() {
     if (state.won || state.paused || state.timerRunning) return;
+
     state.timerRunning = true;
     state.timerStartedAt = Date.now();
   }
@@ -103,9 +115,11 @@
   function stopTimer() {
     if (state.timerRunning) {
       var now = Date.now();
+
       state.elapsedSeconds += Math.floor(
         (now - state.timerStartedAt) / 1000
       );
+
       state.timerRunning = false;
       state.timerStartedAt = 0;
     }
@@ -127,6 +141,7 @@
 
   function createBoardElement() {
     var board = $('sudokuBoard');
+
     if (!board) return;
 
     board.innerHTML = '';
@@ -169,6 +184,7 @@
   function getCellElement(row, col) {
     if (!cellsMatrix) return null;
     if (row < 0 || row > 8 || col < 0 || col > 8) return null;
+
     return cellsMatrix[row][col];
   }
 
@@ -211,11 +227,13 @@
     board = board || state.playerBoard;
 
     var conflicts = {};
+
     if (!isValidBoardShape(board)) return conflicts;
 
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
         var value = board[r][c];
+
         if (value === 0) continue;
 
         var duplicate = false;
@@ -268,6 +286,7 @@
 
   function applyHighlights() {
     var sel = state.selected;
+
     if (!sel || !cellsMatrix) return;
 
     var selVal = state.playerBoard[sel.row][sel.col];
@@ -348,6 +367,7 @@
     if (!isValidCoordinate(row, col)) return;
 
     state.selected = { row: row, col: col };
+
     renderBoard();
   }
 
@@ -369,6 +389,7 @@
     if (state.givenCells[r][c]) return;
 
     var previous = state.playerBoard[r][c];
+
     if (previous === num) return;
 
     state.playerBoard[r][c] = num;
@@ -395,6 +416,7 @@
     if (state.givenCells[r][c]) return;
 
     var previous = state.playerBoard[r][c];
+
     if (previous === 0) return;
 
     state.playerBoard[r][c] = 0;
@@ -417,6 +439,7 @@
     }
 
     var entry = state.history.pop();
+
     if (!entry) return;
     if (state.givenCells[entry.row][entry.col]) return;
 
@@ -524,7 +547,6 @@
   }
 
   // يتحقق من أن الشبكة المكتملة حل صحيح للسودوكو.
-  // لا يعتمد على دالة خارجية من المحرك.
   function isCompleteValidSolution(board) {
     if (!isValidBoardShape(board)) return false;
 
@@ -581,31 +603,16 @@
     return true;
   }
 
-  // يتأكد أن الحل الذي أعاده المحرك لا يخالف أي رقم أدخله اللاعب.
-  function solutionMatchesCurrentBoard(solution, currentBoard) {
-    if (!isCompleteValidSolution(solution)) return false;
-    if (!isValidBoardShape(currentBoard)) return false;
-
-    for (var r = 0; r < 9; r++) {
-      for (var c = 0; c < 9; c++) {
-        if (
-          currentBoard[r][c] !== 0 &&
-          solution[r][c] !== currentBoard[r][c]
-        ) {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
+  // يعرض رسالة مناسبة للمستخدم.
   function showHintMessage(message) {
     window.alert(message);
   }
 
-  // يعيد حلاً للرقعة الحالية، وليس للغز الأصلي فقط.
-  // لا يغيّر رقعة اللاعب أثناء عملية الحل.
+  /*
+   * فحص وجود حل للوحة الحالية.
+   * يستخدم عند الحاجة إلى التحقق من سلامة اللوحة،
+   * وليس لاختيار رقم التلميح.
+   */
   function solveCurrentBoard() {
     if (typeof solveBoard !== 'function') {
       return {
@@ -615,6 +622,14 @@
     }
 
     var boardCopy = cloneGrid(state.playerBoard);
+
+    if (!boardCopy) {
+      return {
+        ok: false,
+        reason: 'invalid-board'
+      };
+    }
+
     var result;
 
     try {
@@ -637,11 +652,25 @@
       };
     }
 
-    if (!solutionMatchesCurrentBoard(result.board, state.playerBoard)) {
+    if (!isValidBoardShape(result.board)) {
       return {
         ok: false,
         reason: 'invalid-solution'
       };
+    }
+
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        if (
+          state.playerBoard[r][c] !== 0 &&
+          result.board[r][c] !== state.playerBoard[r][c]
+        ) {
+          return {
+            ok: false,
+            reason: 'invalid-solution'
+          };
+        }
+      }
     }
 
     return {
@@ -650,14 +679,13 @@
     };
   }
 
-  // يطبّق الرقم على الخلية التي اختارها اللاعب فقط.
+  // يطبّق التلميح على الخلية المحددة فقط.
   function applyHintCell(row, col, num) {
     if (!isValidCoordinate(row, col)) return false;
     if (!isPlainInt(num) || num < 1 || num > 9) return false;
-    if (state.givenCells[row][col]) return false;
+    if (!state.givenCells || state.givenCells[row][col]) return false;
     if (state.playerBoard[row][col] !== 0) return false;
 
-    // إعادة الفحص قبل التعديل الفعلي.
     if (!isSafePlacement(row, col, num)) return false;
 
     var previous = state.playerBoard[row][col];
@@ -680,8 +708,11 @@
     return true;
   }
 
-  // التلميح لا يملأ خلية عشوائية ولا يقرأ state.solution.
-  // يحل الرقعة الحالية ثم يأخذ قيمة الخلية المحددة فقط.
+  /*
+   * التلميح الآمن:
+   * يستخدم getHintForCell من engine.js.
+   * لا يعتمد على state.solution أو أول حل فقط.
+   */
   function applyHint() {
     if (state.paused || state.won) return;
 
@@ -717,7 +748,6 @@
       return;
     }
 
-    // نرفض التلميح إذا كانت هناك أرقام متعارضة في الرقعة.
     var conflicts = computeConflicts(state.playerBoard);
 
     if (Object.keys(conflicts).length > 0) {
@@ -727,56 +757,74 @@
       return;
     }
 
-    // تأكد من أن الخلية المحددة لديها مرشح واحد على الأقل.
-    var hasCandidate = false;
-
-    for (var num = 1; num <= 9; num++) {
-      if (isSafePlacement(row, col, num)) {
-        hasCandidate = true;
-        break;
-      }
-    }
-
-    if (!hasCandidate) {
+    if (typeof getHintForCell !== 'function') {
       showHintMessage(
-        'لا يوجد رقم صالح للخلية المحددة وفق الأرقام الحالية.'
+        'دالة التلميح الآمن غير متاحة. تأكد من تحميل engine.js الصحيح.'
       );
       return;
     }
 
-    // الحل يُحسب من نسخة الرقعة الحالية بما فيها أرقام اللاعب.
-    var solved = solveCurrentBoard();
+    var hint;
 
-    if (!solved.ok) {
-      if (solved.reason === 'engine') {
-        showHintMessage(
-          'محرك الحل غير متاح. تأكد من تحميل engine.js.'
-        );
-      } else if (solved.reason === 'invalid-solution') {
-        showHintMessage(
-          'أعاد محرك الحل نتيجة غير متوافقة مع الرقعة الحالية.'
-        );
-      } else {
-        showHintMessage(
-          'لا يمكن حل الرقعة الحالية. راجع الأرقام التي أدخلتها.'
-        );
-      }
-
-      return;
-    }
-
-    var chosen = solved.board[row][col];
-
-    // فحص أخير قبل وضع الرقم.
-    if (!isSafePlacement(row, col, chosen)) {
+    try {
+      hint = getHintForCell(
+        cloneGrid(state.playerBoard),
+        row,
+        col
+      );
+    } catch (error) {
       showHintMessage(
-        'تعذر تطبيق التلميح لأن الرقم الناتج يتعارض مع الرقعة.'
+        'حدث خطأ أثناء تحليل الرقعة. لم يتم تغيير أي رقم.'
       );
       return;
     }
 
-    if (!applyHintCell(row, col, chosen)) {
-      showHintMessage('تعذر تطبيق التلميح. لم يتم تغيير الرقعة.');
+    if (hint === null || hint === undefined) {
+      var solved = solveCurrentBoard();
+
+      if (!solved.ok) {
+        if (solved.reason === 'engine') {
+          showHintMessage(
+            'محرك الحل غير متاح. تأكد من تحميل engine.js.'
+          );
+        } else if (solved.reason === 'invalid-solution') {
+          showHintMessage(
+            'تعذر التحقق من الحل الناتج عن المحرك.'
+          );
+        } else {
+          showHintMessage(
+            'لا يوجد حل متوافق مع الأرقام الحالية. راجع الأرقام التي أدخلتها.'
+          );
+        }
+
+        return;
+      }
+
+      showHintMessage(
+        'هذه الخلية قد تحتمل أكثر من قيمة في الحلول الممكنة، لذلك لن أفرض عليك رقماً واحداً. اختر خلية أخرى للحصول على تلميح آمن.'
+      );
+
+      return;
+    }
+
+    if (!isPlainInt(hint) || hint < 1 || hint > 9) {
+      showHintMessage(
+        'أعاد المحرك قيمة غير صالحة. لم يتم تغيير الرقعة.'
+      );
+      return;
+    }
+
+    if (!isSafePlacement(row, col, hint)) {
+      showHintMessage(
+        'الرقم المقترح يتعارض مع الرقعة الحالية. لم يتم تغيير أي رقم.'
+      );
+      return;
+    }
+
+    if (!applyHintCell(row, col, hint)) {
+      showHintMessage(
+        'تعذر تطبيق التلميح. لم يتم تغيير الرقعة.'
+      );
     }
   }
 
@@ -788,6 +836,7 @@
       dom.pauseOverlay.hidden = true;
       dom.pauseBtn.textContent = 'إيقاف';
       dom.pauseBtn.classList.remove('active');
+
       resumeTimer();
     } else {
       state.paused = true;
@@ -845,6 +894,7 @@
     stopTimer();
 
     var time = state.elapsedSeconds;
+
     state.lastCompletedLevel = state.level;
 
     saveBestTime(state.level, time);
@@ -1193,10 +1243,12 @@
     });
 
     document.addEventListener('keydown', handleKeyDown);
+
     document.addEventListener(
       'visibilitychange',
       handleVisibilityChange
     );
+
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     setInterval(tickTimer, 1000);
