@@ -1,3 +1,4 @@
+
 (function () {
   'use strict';
 
@@ -39,7 +40,9 @@
     var copy = [];
     for (var r = 0; r < 9; r++) {
       var row = [];
-      for (var c = 0; c < 9; c++) row.push(grid[r][c]);
+      for (var c = 0; c < 9; c++) {
+        row.push(grid[r][c]);
+      }
       copy.push(row);
     }
     return copy;
@@ -49,7 +52,9 @@
     var map = [];
     for (var r = 0; r < 9; r++) {
       var row = [];
-      for (var c = 0; c < 9; c++) row.push(puzzle[r][c] !== 0);
+      for (var c = 0; c < 9; c++) {
+        row.push(puzzle[r][c] !== 0);
+      }
       map.push(row);
     }
     return map;
@@ -65,28 +70,32 @@
   }
 
   function updateTimerDisplay() {
-    dom.timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    if (dom.timerDisplay) {
+      dom.timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    }
   }
 
   function startTimer() {
-    if (state.won || state.paused) return;
-    if (state.timerRunning) return;
+    if (state.won || state.paused || state.timerRunning) return;
     state.timerRunning = true;
     state.timerStartedAt = Date.now();
   }
 
   function pauseTimer() {
     if (!state.timerRunning) return;
+
     var now = Date.now();
-    state.elapsedSeconds += Math.floor((now - state.timerStartedAt) / 1000);
+    state.elapsedSeconds += Math.floor(
+      (now - state.timerStartedAt) / 1000
+    );
+
     state.timerRunning = false;
     state.timerStartedAt = 0;
     updateTimerDisplay();
   }
 
   function resumeTimer() {
-    if (state.won || state.paused) return;
-    if (state.timerRunning) return;
+    if (state.won || state.paused || state.timerRunning) return;
     state.timerRunning = true;
     state.timerStartedAt = Date.now();
   }
@@ -94,41 +103,63 @@
   function stopTimer() {
     if (state.timerRunning) {
       var now = Date.now();
-      state.elapsedSeconds += Math.floor((now - state.timerStartedAt) / 1000);
+      state.elapsedSeconds += Math.floor(
+        (now - state.timerStartedAt) / 1000
+      );
       state.timerRunning = false;
       state.timerStartedAt = 0;
     }
+
     updateTimerDisplay();
   }
 
   function tickTimer() {
-    if (!state.timerRunning) return;
-    var now = Date.now();
-    var delta = Math.floor((now - state.timerStartedAt) / 1000);
-    var total = state.elapsedSeconds + delta;
-    dom.timerDisplay.textContent = formatTime(total);
+    if (!state.timerRunning || !dom.timerDisplay) return;
+
+    var delta = Math.floor(
+      (Date.now() - state.timerStartedAt) / 1000
+    );
+
+    dom.timerDisplay.textContent = formatTime(
+      state.elapsedSeconds + delta
+    );
   }
 
   function createBoardElement() {
     var board = $('sudokuBoard');
+    if (!board) return;
+
     board.innerHTML = '';
     cellsMatrix = [];
 
     for (var r = 0; r < 9; r++) {
       var rowCells = [];
+
       for (var c = 0; c < 9; c++) {
         var cell = document.createElement('button');
+
         cell.type = 'button';
         cell.className = 'cell';
         cell.setAttribute('role', 'gridcell');
         cell.setAttribute('data-row', String(r));
         cell.setAttribute('data-col', String(c));
-        cell.setAttribute('aria-label', 'خلية ' + (r + 1) + ' ' + (c + 1));
-        if (c === 2 || c === 5) cell.classList.add('box-right');
-        if (r === 2 || r === 5) cell.classList.add('box-bottom');
+        cell.setAttribute(
+          'aria-label',
+          'خلية ' + (r + 1) + ' ' + (c + 1)
+        );
+
+        if (c === 2 || c === 5) {
+          cell.classList.add('box-right');
+        }
+
+        if (r === 2 || r === 5) {
+          cell.classList.add('box-bottom');
+        }
+
         board.appendChild(cell);
         rowCells.push(cell);
       }
+
       cellsMatrix.push(rowCells);
     }
 
@@ -142,11 +173,15 @@
   }
 
   function renderBoard() {
-    var r, c, el, value;
-    for (r = 0; r < 9; r++) {
-      for (c = 0; c < 9; c++) {
-        el = cellsMatrix[r][c];
-        value = state.playerBoard[r][c];
+    if (!cellsMatrix || !state.playerBoard || !state.givenCells) {
+      return;
+    }
+
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var el = cellsMatrix[r][c];
+        var value = state.playerBoard[r][c];
+
         el.textContent = value === 0 ? '' : String(value);
 
         el.classList.remove(
@@ -158,35 +193,43 @@
           'selected'
         );
 
-        if (state.givenCells[r][c]) el.classList.add('given');
-        if (state.hintedCells[r + '_' + c]) el.classList.add('hinted');
+        if (state.givenCells[r][c]) {
+          el.classList.add('given');
+        }
+
+        if (state.hintedCells[r + '_' + c]) {
+          el.classList.add('hinted');
+        }
       }
     }
+
     applyHighlights();
     updateProgress();
   }
 
-  function computeConflicts() {
-    var conflicts = {};
-    var r, c, v, cc, rr, br, bc, boxRow, boxCol;
+  function computeConflicts(board) {
+    board = board || state.playerBoard;
 
-    for (r = 0; r < 9; r++) {
-      for (c = 0; c < 9; c++) {
-        v = state.playerBoard[r][c];
-        if (v === 0) continue;
+    var conflicts = {};
+    if (!isValidBoardShape(board)) return conflicts;
+
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var value = board[r][c];
+        if (value === 0) continue;
 
         var duplicate = false;
 
-        for (cc = 0; cc < 9; cc++) {
-          if (cc !== c && state.playerBoard[r][cc] === v) {
+        for (var cc = 0; cc < 9; cc++) {
+          if (cc !== c && board[r][cc] === value) {
             duplicate = true;
             break;
           }
         }
 
         if (!duplicate) {
-          for (rr = 0; rr < 9; rr++) {
-            if (rr !== r && state.playerBoard[rr][c] === v) {
+          for (var rr = 0; rr < 9; rr++) {
+            if (rr !== r && board[rr][c] === value) {
               duplicate = true;
               break;
             }
@@ -194,14 +237,18 @@
         }
 
         if (!duplicate) {
-          boxRow = Math.floor(r / 3) * 3;
-          boxCol = Math.floor(c / 3) * 3;
+          var boxRow = Math.floor(r / 3) * 3;
+          var boxCol = Math.floor(c / 3) * 3;
 
-          for (br = boxRow; br < boxRow + 3 && !duplicate; br++) {
-            for (bc = boxCol; bc < boxCol + 3; bc++) {
+          for (
+            var br = boxRow;
+            br < boxRow + 3 && !duplicate;
+            br++
+          ) {
+            for (var bc = boxCol; bc < boxCol + 3; bc++) {
               if (
                 (br !== r || bc !== c) &&
-                state.playerBoard[br][bc] === v
+                board[br][bc] === value
               ) {
                 duplicate = true;
                 break;
@@ -210,7 +257,9 @@
           }
         }
 
-        if (duplicate) conflicts[r + '_' + c] = true;
+        if (duplicate) {
+          conflicts[r + '_' + c] = true;
+        }
       }
     }
 
@@ -219,11 +268,14 @@
 
   function applyHighlights() {
     var sel = state.selected;
-    if (!sel) return;
+    if (!sel || !cellsMatrix) return;
 
     var selVal = state.playerBoard[sel.row][sel.col];
-    var el = getCellElement(sel.row, sel.col);
-    if (el) el.classList.add('selected');
+    var selectedElement = getCellElement(sel.row, sel.col);
+
+    if (selectedElement) {
+      selectedElement.classList.add('selected');
+    }
 
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
@@ -244,47 +296,72 @@
     var conflicts = computeConflicts();
 
     for (var key in conflicts) {
-      if (!Object.prototype.hasOwnProperty.call(conflicts, key)) continue;
+      if (!Object.prototype.hasOwnProperty.call(conflicts, key)) {
+        continue;
+      }
 
       var parts = key.split('_');
-      var ce = getCellElement(Number(parts[0]), Number(parts[1]));
-      if (ce) ce.classList.add('error');
+      var conflictElement = getCellElement(
+        Number(parts[0]),
+        Number(parts[1])
+      );
+
+      if (conflictElement) {
+        conflictElement.classList.add('error');
+      }
     }
   }
 
   function updateProgress() {
+    if (!dom.progressText || !dom.progressFill || !state.playerBoard) {
+      return;
+    }
+
     var filled = 0;
 
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
-        if (state.playerBoard[r][c] !== 0) filled++;
+        if (state.playerBoard[r][c] !== 0) {
+          filled++;
+        }
       }
     }
 
     dom.progressText.textContent = filled + ' / 81';
-    dom.progressFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
+    dom.progressFill.style.width =
+      (filled / 81 * 100).toFixed(1) + '%';
   }
 
   function updateStatusBar() {
-    dom.levelDisplay.textContent = String(state.level);
-    dom.difficultyDisplay.textContent =
-      DIFFICULTY_LABELS[state.difficulty] || state.difficulty;
+    if (dom.levelDisplay) {
+      dom.levelDisplay.textContent = String(state.level);
+    }
+
+    if (dom.difficultyDisplay) {
+      dom.difficultyDisplay.textContent =
+        DIFFICULTY_LABELS[state.difficulty] || state.difficulty;
+    }
   }
 
   function selectCell(row, col) {
     if (state.paused || state.won) return;
+    if (!isValidCoordinate(row, col)) return;
+
     state.selected = { row: row, col: col };
     renderBoard();
   }
 
   function recordHistory(entry) {
     state.history.push(entry);
-    if (state.history.length > 200) state.history.shift();
+
+    if (state.history.length > 200) {
+      state.history.shift();
+    }
   }
 
   function placeNumber(num) {
-    if (state.paused || state.won) return;
-    if (!state.selected) return;
+    if (state.paused || state.won || !state.selected) return;
+    if (!isPlainInt(num) || num < 1 || num > 9) return;
 
     var r = state.selected.row;
     var c = state.selected.col;
@@ -295,7 +372,12 @@
     if (previous === num) return;
 
     state.playerBoard[r][c] = num;
-    recordHistory({ row: r, col: c, previous: previous });
+
+    recordHistory({
+      row: r,
+      col: c,
+      previous: previous
+    });
 
     delete state.hintedCells[r + '_' + c];
 
@@ -305,8 +387,7 @@
   }
 
   function eraseCell() {
-    if (state.paused || state.won) return;
-    if (!state.selected) return;
+    if (state.paused || state.won || !state.selected) return;
 
     var r = state.selected.row;
     var c = state.selected.col;
@@ -317,7 +398,12 @@
     if (previous === 0) return;
 
     state.playerBoard[r][c] = 0;
-    recordHistory({ row: r, col: c, previous: previous });
+
+    recordHistory({
+      row: r,
+      col: c,
+      previous: previous
+    });
 
     delete state.hintedCells[r + '_' + c];
 
@@ -326,21 +412,29 @@
   }
 
   function undoMove() {
-    if (state.paused || state.won) return;
-    if (state.history.length === 0) return;
+    if (state.paused || state.won || state.history.length === 0) {
+      return;
+    }
 
     var entry = state.history.pop();
     if (!entry) return;
     if (state.givenCells[entry.row][entry.col]) return;
 
     state.playerBoard[entry.row][entry.col] = entry.previous;
-    delete state.hintedCells[entry.row + '_' + entry.col];
+
+    delete state.hintedCells[
+      entry.row + '_' + entry.col
+    ];
+
+    state.selected = {
+      row: entry.row,
+      col: entry.col
+    };
 
     renderBoard();
     persistProgress();
   }
 
-  // التحقق من إحداثيات الخلية.
   function isValidCoordinate(row, col) {
     return (
       typeof row === 'number' &&
@@ -354,16 +448,18 @@
     );
   }
 
-  // التحقق من أن القيمة عدد صحيح.
   function isPlainInt(value) {
-    return typeof value === 'number' &&
+    return (
+      typeof value === 'number' &&
       isFinite(value) &&
-      Math.floor(value) === value;
+      Math.floor(value) === value
+    );
   }
 
-  // التحقق من بنية الرقعة وقيم خلاياها.
   function isValidBoardShape(board) {
-    if (!Array.isArray(board) || board.length !== 9) return false;
+    if (!Array.isArray(board) || board.length !== 9) {
+      return false;
+    }
 
     for (var r = 0; r < 9; r++) {
       if (!Array.isArray(board[r]) || board[r].length !== 9) {
@@ -373,7 +469,11 @@
       for (var c = 0; c < 9; c++) {
         var value = board[r][c];
 
-        if (!isPlainInt(value) || value < 0 || value > 9) {
+        if (
+          !isPlainInt(value) ||
+          value < 0 ||
+          value > 9
+        ) {
           return false;
         }
       }
@@ -382,15 +482,17 @@
     return true;
   }
 
-  // يتحقق من صلاحية الرقم وفق الرقعة الحالية فقط.
-  // لا يعتمد على الحل المخزن ولا يغيّر أي خانة أخرى.
+  // يتحقق من عدم تعارض الرقم مع الرقعة الحالية.
   function isSafePlacement(row, col, num) {
     if (!isValidCoordinate(row, col)) return false;
     if (!isPlainInt(num) || num < 1 || num > 9) return false;
     if (!isValidBoardShape(state.playerBoard)) return false;
 
     var current = state.playerBoard[row][col];
-    if (current !== 0 && current !== num) return false;
+
+    if (current !== 0 && current !== num) {
+      return false;
+    }
 
     for (var c = 0; c < 9; c++) {
       if (c !== col && state.playerBoard[row][c] === num) {
@@ -421,70 +523,152 @@
     return true;
   }
 
-  // يعيد الأرقام التي لا تتعارض مع الصف والعمود والمربع.
-  function getSafeCandidatesForCell(row, col) {
-    if (!isValidCoordinate(row, col)) return [];
-    if (state.playerBoard[row][col] !== 0) return [];
+  // يتحقق من أن الشبكة المكتملة حل صحيح للسودوكو.
+  // لا يعتمد على دالة خارجية من المحرك.
+  function isCompleteValidSolution(board) {
+    if (!isValidBoardShape(board)) return false;
 
-    var candidates = [];
+    for (var r = 0; r < 9; r++) {
+      var rowSeen = {};
 
-    for (var num = 1; num <= 9; num++) {
-      if (isSafePlacement(row, col, num)) {
-        candidates.push(num);
+      for (var c = 0; c < 9; c++) {
+        var rowValue = board[r][c];
+
+        if (rowValue < 1 || rowValue > 9 || rowSeen[rowValue]) {
+          return false;
+        }
+
+        rowSeen[rowValue] = true;
       }
     }
 
-    return candidates;
+    for (var c = 0; c < 9; c++) {
+      var colSeen = {};
+
+      for (var r = 0; r < 9; r++) {
+        var colValue = board[r][c];
+
+        if (colValue < 1 || colValue > 9 || colSeen[colValue]) {
+          return false;
+        }
+
+        colSeen[colValue] = true;
+      }
+    }
+
+    for (var boxRow = 0; boxRow < 9; boxRow += 3) {
+      for (var boxCol = 0; boxCol < 9; boxCol += 3) {
+        var boxSeen = {};
+
+        for (var r = boxRow; r < boxRow + 3; r++) {
+          for (var c = boxCol; c < boxCol + 3; c++) {
+            var boxValue = board[r][c];
+
+            if (
+              boxValue < 1 ||
+              boxValue > 9 ||
+              boxSeen[boxValue]
+            ) {
+              return false;
+            }
+
+            boxSeen[boxValue] = true;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  // يتأكد أن الحل الذي أعاده المحرك لا يخالف أي رقم أدخله اللاعب.
+  function solutionMatchesCurrentBoard(solution, currentBoard) {
+    if (!isCompleteValidSolution(solution)) return false;
+    if (!isValidBoardShape(currentBoard)) return false;
+
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        if (
+          currentBoard[r][c] !== 0 &&
+          solution[r][c] !== currentBoard[r][c]
+        ) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   function showHintMessage(message) {
     window.alert(message);
   }
 
-  // يختبر المرشح على نسخة من الرقعة الحالية.
-  // لا يغير رقعة اللاعب أثناء اختبار قابلية الحل.
-  function candidateKeepsBoardSolvable(row, col, num) {
-    if (!isSafePlacement(row, col, num)) return false;
-    if (typeof solveBoard !== 'function') return false;
+  // يعيد حلاً للرقعة الحالية، وليس للغز الأصلي فقط.
+  // لا يغيّر رقعة اللاعب أثناء عملية الحل.
+  function solveCurrentBoard() {
+    if (typeof solveBoard !== 'function') {
+      return {
+        ok: false,
+        reason: 'engine'
+      };
+    }
 
-    var testBoard = cloneGrid(state.playerBoard);
-    testBoard[row][col] = num;
-
+    var boardCopy = cloneGrid(state.playerBoard);
     var result;
 
     try {
-      result = solveBoard(testBoard);
+      result = solveBoard(boardCopy);
     } catch (error) {
-      return false;
+      return {
+        ok: false,
+        reason: 'error'
+      };
     }
 
-    return !!(
-      result &&
-      result.solved === true &&
-      result.board &&
-      isValidBoardShape(result.board) &&
-      typeof validateSolvedBoard === 'function' &&
-      validateSolvedBoard(result.board)
-    );
+    if (
+      !result ||
+      result.solved !== true ||
+      !result.board
+    ) {
+      return {
+        ok: false,
+        reason: 'unsolvable'
+      };
+    }
+
+    if (!solutionMatchesCurrentBoard(result.board, state.playerBoard)) {
+      return {
+        ok: false,
+        reason: 'invalid-solution'
+      };
+    }
+
+    return {
+      ok: true,
+      board: result.board
+    };
   }
 
-  function applyHintCell(cell) {
-    if (!cell || !isValidCoordinate(cell.row, cell.col)) return false;
-    if (!isPlainInt(cell.num) || cell.num < 1 || cell.num > 9) {
-      return false;
-    }
-
-    var row = cell.row;
-    var col = cell.col;
-
+  // يطبّق الرقم على الخلية التي اختارها اللاعب فقط.
+  function applyHintCell(row, col, num) {
+    if (!isValidCoordinate(row, col)) return false;
+    if (!isPlainInt(num) || num < 1 || num > 9) return false;
     if (state.givenCells[row][col]) return false;
     if (state.playerBoard[row][col] !== 0) return false;
-    if (!isSafePlacement(row, col, cell.num)) return false;
+
+    // إعادة الفحص قبل التعديل الفعلي.
+    if (!isSafePlacement(row, col, num)) return false;
 
     var previous = state.playerBoard[row][col];
 
-    state.playerBoard[row][col] = cell.num;
-    recordHistory({ row: row, col: col, previous: previous });
+    state.playerBoard[row][col] = num;
+
+    recordHistory({
+      row: row,
+      col: col,
+      previous: previous
+    });
 
     state.hintedCells[row + '_' + col] = true;
     state.selected = { row: row, col: col };
@@ -496,9 +680,8 @@
     return true;
   }
 
-  // التلميح يعالج الخلية المحددة حصراً.
-  // يتحقق من الرقعة الحالية، ثم يختبر المرشحين باستخدام محرك الحل.
-  // لا يستخدم الحل المخزن ولا يملأ خلية أخرى.
+  // التلميح لا يملأ خلية عشوائية ولا يقرأ state.solution.
+  // يحل الرقعة الحالية ثم يأخذ قيمة الخلية المحددة فقط.
   function applyHint() {
     if (state.paused || state.won) return;
 
@@ -521,77 +704,78 @@
     }
 
     if (state.playerBoard[row][col] !== 0) {
-      showHintMessage('الخلية المحددة تحتوي على رقم بالفعل. اختر خلية فارغة.');
+      showHintMessage(
+        'الخلية المحددة تحتوي على رقم بالفعل. اختر خلية فارغة.'
+      );
       return;
     }
 
     if (!isValidBoardShape(state.playerBoard)) {
-      showHintMessage('تعذر إعطاء التلميح لأن بيانات الرقعة غير صالحة.');
+      showHintMessage(
+        'تعذر إعطاء التلميح لأن بيانات الرقعة غير صالحة.'
+      );
       return;
     }
 
-    // لا نكمل إذا كانت هناك أرقام متعارضة في أي مكان بالرقعة.
-    if (typeof validateBoard !== 'function') {
-      showHintMessage('محرك التحقق غير متاح. تأكد من تحميل engine.js.');
-      return;
-    }
+    // نرفض التلميح إذا كانت هناك أرقام متعارضة في الرقعة.
+    var conflicts = computeConflicts(state.playerBoard);
 
-    var boardIsValid = false;
-
-    try {
-      boardIsValid = validateBoard(cloneGrid(state.playerBoard)) === true;
-    } catch (error) {
-      boardIsValid = false;
-    }
-
-    if (!boardIsValid) {
+    if (Object.keys(conflicts).length > 0) {
       showHintMessage(
         'توجد أرقام متعارضة في الرقعة. صحح التعارضات أولاً ثم اطلب التلميح.'
       );
       return;
     }
 
-    if (typeof solveBoard !== 'function') {
-      showHintMessage('محرك الحل غير متاح. تأكد من تحميل engine.js.');
-      return;
+    // تأكد من أن الخلية المحددة لديها مرشح واحد على الأقل.
+    var hasCandidate = false;
+
+    for (var num = 1; num <= 9; num++) {
+      if (isSafePlacement(row, col, num)) {
+        hasCandidate = true;
+        break;
+      }
     }
 
-    var candidates = getSafeCandidatesForCell(row, col);
-
-    if (candidates.length === 0) {
+    if (!hasCandidate) {
       showHintMessage(
         'لا يوجد رقم صالح للخلية المحددة وفق الأرقام الحالية.'
       );
       return;
     }
 
-    // اختبار المرشحين واحداً تلو الآخر على نسخ مستقلة.
-    // يقبل المرشح فقط إذا بقيت الرقعة قابلة للحل.
-    var validCandidates = [];
+    // الحل يُحسب من نسخة الرقعة الحالية بما فيها أرقام اللاعب.
+    var solved = solveCurrentBoard();
 
-    for (var i = 0; i < candidates.length; i++) {
-      if (candidateKeepsBoardSolvable(row, col, candidates[i])) {
-        validCandidates.push(candidates[i]);
+    if (!solved.ok) {
+      if (solved.reason === 'engine') {
+        showHintMessage(
+          'محرك الحل غير متاح. تأكد من تحميل engine.js.'
+        );
+      } else if (solved.reason === 'invalid-solution') {
+        showHintMessage(
+          'أعاد محرك الحل نتيجة غير متوافقة مع الرقعة الحالية.'
+        );
+      } else {
+        showHintMessage(
+          'لا يمكن حل الرقعة الحالية. راجع الأرقام التي أدخلتها.'
+        );
       }
+
+      return;
     }
 
-    if (validCandidates.length === 0) {
+    var chosen = solved.board[row][col];
+
+    // فحص أخير قبل وضع الرقم.
+    if (!isSafePlacement(row, col, chosen)) {
       showHintMessage(
-        'لم يتم العثور على رقم يبقي الرقعة الحالية قابلة للحل. ' +
-        'راجع الأرقام التي أدخلتها.'
+        'تعذر تطبيق التلميح لأن الرقم الناتج يتعارض مع الرقعة.'
       );
       return;
     }
 
-    // إذا بقي أكثر من مرشح صالح، نختار أحدها فقط بعد التأكد
-    // من أنه لا يتعارض مع الرقعة الحالية وأن الرقعة تظل قابلة للحل.
-    var chosen = validCandidates[0];
-
-    if (!applyHintCell({
-      row: row,
-      col: col,
-      num: chosen
-    })) {
+    if (!applyHintCell(row, col, chosen)) {
       showHintMessage('تعذر تطبيق التلميح. لم يتم تغيير الرقعة.');
     }
   }
@@ -628,24 +812,34 @@
     state.timerRunning = false;
     state.timerStartedAt = 0;
 
+    if (dom.winOverlay) {
+      dom.winOverlay.hidden = true;
+    }
+
     updateTimerDisplay();
     renderBoard();
 
-    if (!state.paused) startTimer();
+    if (!state.paused) {
+      startTimer();
+    }
 
     persistProgress();
   }
 
   function checkWin() {
-    if (state.won) return;
+    if (state.won || !state.playerBoard) return;
 
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
-        if (state.playerBoard[r][c] === 0) return;
+        if (state.playerBoard[r][c] === 0) {
+          return;
+        }
       }
     }
 
-    if (!validateSolvedBoard(state.playerBoard)) return;
+    if (!isCompleteValidSolution(state.playerBoard)) {
+      return;
+    }
 
     state.won = true;
     stopTimer();
@@ -654,6 +848,7 @@
     state.lastCompletedLevel = state.level;
 
     saveBestTime(state.level, time);
+
     saveCompletedLevel(state.level, {
       seconds: time,
       difficulty: state.difficulty
@@ -666,12 +861,13 @@
       best !== null ? formatTime(best) : formatTime(time);
 
     dom.winOverlay.hidden = false;
+
     updateStatusBar();
     clearProgress();
   }
 
   function persistProgress() {
-    if (state.won) return;
+    if (state.won || !state.puzzle || !state.playerBoard) return;
 
     saveProgress({
       level: state.level,
@@ -681,7 +877,9 @@
       playerBoard: state.playerBoard,
       elapsedSeconds: state.timerRunning
         ? state.elapsedSeconds +
-          Math.floor((Date.now() - state.timerStartedAt) / 1000)
+          Math.floor(
+            (Date.now() - state.timerStartedAt) / 1000
+          )
         : state.elapsedSeconds,
       paused: state.paused
     });
@@ -706,18 +904,10 @@
     if (result.solution) {
       solution = cloneGrid(result.solution);
     } else {
-      var solved = solveBoard(result.puzzle);
+      var solved = solveBoard(cloneGrid(result.puzzle));
 
       if (solved && solved.solved && solved.board) {
         solution = cloneGrid(solved.board);
-      }
-    }
-
-    if (!solution) {
-      var solved2 = solveBoard(result.puzzle);
-
-      if (solved2 && solved2.solved && solved2.board) {
-        solution = cloneGrid(solved2.board);
       }
     }
 
@@ -778,16 +968,24 @@
 
   function resumeSavedProgress() {
     var saved = loadProgress();
-    if (!saved) return false;
+
+    if (!saved || !saved.puzzle || !saved.playerBoard) {
+      return false;
+    }
+
+    if (
+      !isValidBoardShape(saved.puzzle) ||
+      !isValidBoardShape(saved.playerBoard)
+    ) {
+      return false;
+    }
 
     var difficulty = isDifficultyName(saved.difficulty)
       ? saved.difficulty
       : getDifficultyForLevel(saved.level);
 
-    var baseSeed = 'DrDer-Sudoku-v1';
-
     var levelData = createLevel(saved.level, difficulty, {
-      baseSeed: baseSeed,
+      baseSeed: 'DrDer-Sudoku-v1',
       maxAttempts: 10,
       allowMultipleSolutions: true
     });
@@ -798,23 +996,20 @@
       levelData &&
       !levelData.failed &&
       levelData.puzzle &&
-      levelData.seed === saved.seed
+      levelData.seed === saved.seed &&
+      levelData.solution
     ) {
-      if (levelData.solution) {
-        solution = cloneGrid(levelData.solution);
-      } else {
-        var solvedLevel = solveBoard(levelData.puzzle);
-
-        if (solvedLevel && solvedLevel.solved && solvedLevel.board) {
-          solution = cloneGrid(solvedLevel.board);
-        }
-      }
+      solution = cloneGrid(levelData.solution);
     }
 
     if (!solution) {
-      var solvedSaved = solveBoard(saved.puzzle);
+      var solvedSaved = solveBoard(cloneGrid(saved.puzzle));
 
-      if (solvedSaved && solvedSaved.solved && solvedSaved.board) {
+      if (
+        solvedSaved &&
+        solvedSaved.solved &&
+        solvedSaved.board
+      ) {
         solution = cloneGrid(solvedSaved.board);
       }
     }
@@ -831,11 +1026,23 @@
     state.history = [];
     state.hintedCells = {};
     state.selected = null;
-    state.elapsedSeconds = saved.elapsedSeconds || 0;
+    state.elapsedSeconds = Math.max(
+      0,
+      Number(saved.elapsedSeconds) || 0
+    );
     state.timerRunning = false;
     state.timerStartedAt = 0;
     state.paused = false;
     state.won = false;
+
+    // لا نسمح للبيانات المحفوظة بتغيير الأرقام الأصلية.
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        if (state.givenCells[r][c]) {
+          state.playerBoard[r][c] = state.puzzle[r][c];
+        }
+      }
+    }
 
     updateTimerDisplay();
     updateStatusBar();
@@ -848,14 +1055,18 @@
   function handleBoardClick(event) {
     var target = event.target;
 
-    if (!target || !target.classList || !target.classList.contains('cell')) {
+    if (
+      !target ||
+      !target.classList ||
+      !target.classList.contains('cell')
+    ) {
       return;
     }
 
     var row = Number(target.getAttribute('data-row'));
     var col = Number(target.getAttribute('data-col'));
 
-    if (!isFinite(row) || !isFinite(col)) return;
+    if (!isValidCoordinate(row, col)) return;
 
     selectCell(row, col);
   }
@@ -872,7 +1083,8 @@
     }
 
     var num = Number(target.getAttribute('data-num'));
-    if (!isFinite(num)) return;
+
+    if (!isPlainInt(num)) return;
 
     placeNumber(num);
   }
@@ -888,7 +1100,11 @@
       return;
     }
 
-    if (key === 'Backspace' || key === 'Delete' || key === '0') {
+    if (
+      key === 'Backspace' ||
+      key === 'Delete' ||
+      key === '0'
+    ) {
       eraseCell();
       event.preventDefault();
       return;
@@ -918,7 +1134,6 @@
     if (document.hidden) {
       if (state.timerRunning) {
         pauseTimer();
-        state.timerRunning = false;
       }
 
       persistProgress();
@@ -938,9 +1153,9 @@
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
 
-    var swPath = 'sw.js';
-
-    navigator.serviceWorker.register(swPath).catch(function () {});
+    navigator.serviceWorker
+      .register('sw.js')
+      .catch(function () {});
   }
 
   function init() {
@@ -956,10 +1171,15 @@
     dom.winTime = $('winTime');
     dom.winBestTime = $('winBestTime');
 
+    if (!dom.board) return;
+
     createBoardElement();
 
-    document.querySelector('.number-pad')
-      .addEventListener('click', handleNumberPad);
+    var numberPad = document.querySelector('.number-pad');
+
+    if (numberPad) {
+      numberPad.addEventListener('click', handleNumberPad);
+    }
 
     $('eraseBtn').addEventListener('click', eraseCell);
     $('undoBtn').addEventListener('click', undoMove);
@@ -973,7 +1193,10 @@
     });
 
     document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener(
+      'visibilitychange',
+      handleVisibilityChange
+    );
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     setInterval(tickTimer, 1000);
@@ -982,7 +1205,7 @@
 
     try {
       resumed = resumeSavedProgress();
-    } catch (e) {
+    } catch (error) {
       resumed = false;
     }
 
