@@ -1,8 +1,7 @@
 // DrDer-Sudoku app.js
 // واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
 // الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع) لا بمطابقة حل مخزّن.
-// التلميح يعتمد على استنتاجات منطقية إلزامية (Naked Single وHidden Single)
-// لضمان عدم تعارضه مع مسار اللاعب.
+// التلميح يعتمد على استنتاجات منطقية إلزامية (Naked Single وHidden Single).
 
 (function () {
   'use strict';
@@ -30,7 +29,8 @@
     timerStartedAt: 0,
     paused: false,
     won: false,
-    hintedCells: {}
+    hintedCells: {},
+    lastCompletedLevel: null
   };
 
   var dom = {};
@@ -235,10 +235,16 @@
     dom.progressFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
   }
 
+  // updateStatusBar: يعرض أفضل وقت للمرحلة الحالية إن وُجد،
+  // وإلا يعرض أفضل وقت آخر مرحلة مكتملة، وإلا '—'.
   function updateStatusBar() {
     dom.levelDisplay.textContent = String(state.level);
     dom.difficultyDisplay.textContent = DIFFICULTY_LABELS[state.difficulty] || state.difficulty;
+
     var best = getBestTime(state.level);
+    if (best === null && state.lastCompletedLevel !== null && state.lastCompletedLevel !== state.level) {
+      best = getBestTime(state.lastCompletedLevel);
+    }
     dom.bestTimeDisplay.textContent = best !== null ? formatTime(best) : '—';
   }
 
@@ -297,7 +303,6 @@
     persistProgress();
   }
 
-  // بحث عن Naked Single: خانة فارغة لها مرشح واحد فقط.
   function findLocalNakedSingle() {
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
@@ -312,7 +317,6 @@
     return null;
   }
 
-  // بحث عن Hidden Single: رقم لا يمكن وضعه إلا في خانة واحدة ضمن صف أو عمود أو مربع.
   function findLocalHiddenSingle() {
     var r, c, num;
 
@@ -396,8 +400,6 @@
     return true;
   }
 
-  // applyHint: يعتمد على استنتاجات منطقية إلزامية فقط، ولا يستخدم أي حل مخزّن.
-  // لا يمكن أن يتعارض التلميح مع أي حل صحيح للاعب لأنه إلزامي في جميع الحلول.
   function applyHint() {
     if (state.paused || state.won) return;
 
@@ -458,6 +460,7 @@
     state.won = true;
     stopTimer();
     var time = state.elapsedSeconds;
+    state.lastCompletedLevel = state.level;
     saveBestTime(state.level, time);
     saveCompletedLevel(state.level, { seconds: time, difficulty: state.difficulty });
     var best = getBestTime(state.level);
