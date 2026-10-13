@@ -1,5 +1,6 @@
 // DrDer-Sudoku storage.js
 // وحدة التخزين المحلي. تعتمد على localStorage فقط، ولا تتعامل مع DOM.
+// لا تشترط مطابقة لوحة اللاعب لحل مخزّن؛ التحقق من صحة الفوز يجري في app.js.
 
 var STORAGE_KEYS = {
   progress: 'DrDerSudoku:progress',
@@ -93,6 +94,8 @@ function cloneBoardSafe(board) {
   return copy;
 }
 
+// isPlayerBoardCompatible: يتحقق من أن الأرقام الأصلية في اللغز لم تتغير في لوحة اللاعب.
+// لا يشترط أن تكون لوحة اللاعب مكتملة أو خالية من التعارضات أثناء اللعب.
 function isPlayerBoardCompatible(puzzle, playerBoard) {
   if (!isValidBoardShape(puzzle) || !isValidBoardShape(playerBoard)) return false;
   if (!isValidBoardValues(puzzle) || !isValidBoardValues(playerBoard)) return false;
@@ -188,6 +191,8 @@ function safeStringifyJSON(value) {
 
 // ---------- التقدم الحالي ----------
 
+// saveProgress: يحفظ لوحة اللغز ولوحة اللاعب دون اشتراط تطابق مع حل مخزّن.
+// يتحقق فقط من أن لوحة اللاعب تحترم الأرقام الأصلية.
 function saveProgress(data) {
   if (!data || typeof data !== 'object') return false;
 
