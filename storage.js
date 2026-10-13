@@ -1,6 +1,6 @@
 // DrDer-Sudoku storage.js
 // وحدة التخزين المحلي. تعتمد على localStorage فقط، ولا تتعامل مع DOM.
-// لا تشترط مطابقة لوحة اللاعب لحل مخزّن؛ التحقق من صحة الفوز يجري في app.js.
+// تحفظ أفضل الأوقات لكل مرحلة، ولا تمسحها عند مسح تقدم اللعب الحالي.
 
 var STORAGE_KEYS = {
   progress: 'DrDerSudoku:progress',
@@ -94,8 +94,6 @@ function cloneBoardSafe(board) {
   return copy;
 }
 
-// isPlayerBoardCompatible: يتحقق من أن الأرقام الأصلية في اللغز لم تتغير في لوحة اللاعب.
-// لا يشترط أن تكون لوحة اللاعب مكتملة أو خالية من التعارضات أثناء اللعب.
 function isPlayerBoardCompatible(puzzle, playerBoard) {
   if (!isValidBoardShape(puzzle) || !isValidBoardShape(playerBoard)) return false;
   if (!isValidBoardValues(puzzle) || !isValidBoardValues(playerBoard)) return false;
@@ -124,8 +122,6 @@ function isValidTheme(theme) {
   }
   return false;
 }
-
-// ---------- التخزين الآمن ----------
 
 function isStorageAvailable() {
   try {
@@ -189,10 +185,6 @@ function safeStringifyJSON(value) {
   }
 }
 
-// ---------- التقدم الحالي ----------
-
-// saveProgress: يحفظ لوحة اللغز ولوحة اللاعب دون اشتراط تطابق مع حل مخزّن.
-// يتحقق فقط من أن لوحة اللاعب تحترم الأرقام الأصلية.
 function saveProgress(data) {
   if (!data || typeof data !== 'object') return false;
 
@@ -269,8 +261,6 @@ function clearProgress() {
   return safeRemoveItem(STORAGE_KEYS.progress);
 }
 
-// ---------- أفضل الأوقات ----------
-
 function loadBestTimesMap() {
   var text = safeGetItem(STORAGE_KEYS.bestTimes);
   if (text === null) return {};
@@ -308,8 +298,6 @@ function getBestTime(level) {
   if (isPlainInt(value) && value >= 0) return value;
   return null;
 }
-
-// ---------- المراحل المكتملة ----------
 
 function loadCompletedMap() {
   var text = safeGetItem(STORAGE_KEYS.completed);
@@ -360,8 +348,6 @@ function getCompletedLevel(level) {
   };
 }
 
-// ---------- الإعدادات ----------
-
 function saveSettings(settings) {
   if (!settings || typeof settings !== 'object') return false;
   var merged = {
@@ -388,8 +374,6 @@ function loadSettings() {
     theme: isValidTheme(parsed.theme) ? parsed.theme : DEFAULT_SETTINGS.theme
   };
 }
-
-// ---------- سجل التوقيعات ----------
 
 function loadPuzzleHistory() {
   var text = safeGetItem(STORAGE_KEYS.history);
