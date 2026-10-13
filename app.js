@@ -1,6 +1,8 @@
 // DrDer-Sudoku app.js
 // واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
 // الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع) لا بمطابقة حل مخزّن.
+// التلميح يعتمد على استنتاجات منطقية إلزامية (Naked Single وHidden Single)
+// لضمان عدم تعارضه مع مسار اللاعب.
 
 (function () {
   'use strict';
@@ -162,8 +164,6 @@
     updateProgress();
   }
 
-  // computeConflicts: يكتشف الأرقام المتعارضة مع قواعد السودوكو الثلاث.
-  // يشمل الخلايا الأصلية واللاعب معًا لإظهار التعارض الصحيح.
   function computeConflicts() {
     var conflicts = {};
     var r, c, v, cc, rr, br, bc, boxRow, boxCol;
@@ -297,61 +297,117 @@
     persistProgress();
   }
 
-  // applyHint: يقدم تلميحًا صحيحًا وفق قواعد السودوكو دون الاعتماد على حل مخزّن.
-  // يحاول أولاً إيجاد حل صالح من الحالة الحالية للوحة اللاعب عبر solveBoard،
-  // وإن تعذّر ذلك (بسبب تعارضات أو خلايا فارغة بلا مرشح) فلا يغيّر أي شيء.
-  function applyHint() {
-    if (state.paused || state.won) return;
-    if (!state.playerBoard) return;
-
-    var solveResult = solveBoard(state.playerBoard);
-    if (!solveResult || !solveResult.solved || !solveResult.board) {
-      return;
-    }
-    var workingSolution = solveResult.board;
-
-    var target = state.selected;
-    if (target && state.givenCells[target.row][target.col]) target = null;
-    if (target && state.playerBoard[target.row][target.col] === workingSolution[target.row][target.col]) target = null;
-
-    if (!target) {
-      var best = null;
-      for (var r = 0; r < 9 && !best; r++) {
-        for (var c = 0; c < 9; c++) {
-          if (state.givenCells[r][c]) continue;
-          if (state.playerBoard[r][c] === 0) {
-            best = { row: r, col: c };
-            break;
-          }
+  // بحث عن Naked Single: خانة فارغة لها مرشح واحد فقط.
+  function findLocalNakedSingle() {
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        if (state.playerBoard[r][c] !== 0) continue;
+        if (state.givenCells[r][c]) continue;
+        var cands = getCandidates(state.playerBoard, r, c);
+        if (cands.length === 1) {
+          return { row: r, col: c, num: cands[0] };
         }
       }
-      if (!best) {
-        for (var r2 = 0; r2 < 9 && !best; r2++) {
-          for (var c2 = 0; c2 < 9; c2++) {
-            if (state.givenCells[r2][c2]) continue;
-            if (state.playerBoard[r2][c2] !== workingSolution[r2][c2]) {
-              best = { row: r2, col: c2 };
-              break;
+    }
+    return null;
+  }
+
+  // بحث عن Hidden Single: رقم لا يمكن وضعه إلا في خانة واحدة ضمن صف أو عمود أو مربع.
+  function findLocalHiddenSingle() {
+    var r, c, num;
+
+    for (r = 0; r < 9; r++) {
+      for (num = 1; num <= 9; num++) {
+        var has = false;
+        for (c = 0; c < 9; c++) {
+          if (state.playerBoard[r][c] === num) { has = true; break; }
+        }
+        if (has) continue;
+        var count = 0, pos = null;
+        for (c = 0; c < 9; c++) {
+          if (state.playerBoard[r][c] !== 0) continue;
+          if (state.givenCells[r][c]) continue;
+          var candsR = getCandidates(state.playerBoard, r, c);
+          if (candsR.indexOf(num) !== -1) { count++; pos = { row: r, col: c }; }
+        }
+        if (count === 1 && pos) return { row: pos.row, col: pos.col, num: num };
+      }
+    }
+
+    for (c = 0; c < 9; c++) {
+      for (num = 1; num <= 9; num++) {
+        var hasC = false;
+        for (r = 0; r < 9; r++) {
+          if (state.playerBoard[r][c] === num) { hasC = true; break; }
+        }
+        if (hasC) continue;
+        var countC = 0, posC = null;
+        for (r = 0; r < 9; r++) {
+          if (state.playerBoard[r][c] !== 0) continue;
+          if (state.givenCells[r][c]) continue;
+          var candsC = getCandidates(state.playerBoard, r, c);
+          if (candsC.indexOf(num) !== -1) { countC++; posC = { row: r, col: c }; }
+        }
+        if (countC === 1 && posC) return { row: posC.row, col: posC.col, num: num };
+      }
+    }
+
+    for (var br = 0; br < 3; br++) {
+      for (var bc = 0; bc < 3; bc++) {
+        for (num = 1; num <= 9; num++) {
+          var hasB = false;
+          for (r = br * 3; r < br * 3 + 3; r++) {
+            for (c = bc * 3; c < bc * 3 + 3; c++) {
+              if (state.playerBoard[r][c] === num) hasB = true;
             }
           }
+          if (hasB) continue;
+          var countB = 0, posB = null;
+          for (r = br * 3; r < br * 3 + 3; r++) {
+            for (c = bc * 3; c < bc * 3 + 3; c++) {
+              if (state.playerBoard[r][c] !== 0) continue;
+              if (state.givenCells[r][c]) continue;
+              var candsB = getCandidates(state.playerBoard, r, c);
+              if (candsB.indexOf(num) !== -1) { countB++; posB = { row: r, col: c }; }
+            }
+          }
+          if (countB === 1 && posB) return { row: posB.row, col: posB.col, num: num };
         }
       }
-      target = best;
     }
 
-    if (!target) return;
+    return null;
+  }
 
-    var correct = workingSolution[target.row][target.col];
-    var prev = state.playerBoard[target.row][target.col];
-    if (prev === correct) return;
+  function applyHintCell(cell) {
+    var row = cell.row;
+    var col = cell.col;
+    var num = cell.num;
+    var prev = state.playerBoard[row][col];
+    if (prev === num) return false;
 
-    state.playerBoard[target.row][target.col] = correct;
-    recordHistory({ row: target.row, col: target.col, previous: prev });
-    state.hintedCells[target.row + '_' + target.col] = true;
-    state.selected = { row: target.row, col: target.col };
+    state.playerBoard[row][col] = num;
+    recordHistory({ row: row, col: col, previous: prev });
+    state.hintedCells[row + '_' + col] = true;
+    state.selected = { row: row, col: col };
     renderBoard();
     checkWin();
     persistProgress();
+    return true;
+  }
+
+  // applyHint: يعتمد على استنتاجات منطقية إلزامية فقط، ولا يستخدم أي حل مخزّن.
+  // لا يمكن أن يتعارض التلميح مع أي حل صحيح للاعب لأنه إلزامي في جميع الحلول.
+  function applyHint() {
+    if (state.paused || state.won) return;
+
+    var cell = findLocalNakedSingle();
+    if (cell) { applyHintCell(cell); return; }
+
+    cell = findLocalHiddenSingle();
+    if (cell) { applyHintCell(cell); return; }
+
+    return;
   }
 
   function togglePause() {
@@ -388,8 +444,6 @@
     persistProgress();
   }
 
-  // checkWin: يعتمد على اكتمال اللوحة وصحتها وفق قواعد السودوكو فقط.
-  // لا يقارن اللوحة بأي حل مخزّن.
   function checkWin() {
     if (state.won) return;
 
@@ -442,7 +496,6 @@
       return false;
     }
 
-    // إذا لم يكن للمحرك حل مخزّن صالح (بسبب تعدد الحلول)، نحسب حلًا مرجعيًا لحظيًا.
     var solution = null;
     if (result.solution) {
       solution = cloneGrid(result.solution);
@@ -505,8 +558,6 @@
     persistProgress();
   }
 
-  // resumeSavedProgress: يستعيد التقدم دون الاعتماد على تطابق playerBoard مع solution.
-  // يعتمد على قواعد السودوكو لضمان أن اللوحة المحفوظة صالحة بنيويًا.
   function resumeSavedProgress() {
     var saved = loadProgress();
     if (!saved) return false;
