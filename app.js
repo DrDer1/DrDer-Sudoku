@@ -1,16 +1,26 @@
 // DrDer-Sudoku app.js
-// واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js وstorage.js.
-// لا مراحل، لا تقسيم مستويات، لا صعوبة معروضة، لا زر تلميح.
-// الفوز يُحتسب وفق قواعد السودوكو (صف، عمود، مربع).
+// واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js (Sudoku.js) وstorage.js.
+// المحرك يعمل على سلاسل نصية من 81 حرفاً. الواجهة تعمل على مصفوفة 9×9.
+// التحويل بينهما يتم عبر دوال محلية في هذا الملف.
+// لا مراحل، لا تلميح، لا حل مخزّن. الفوز يُحتسب وفق قواعد السودوكو.
 
 (function () {
   'use strict';
 
+  var BLANK_CHAR = '.';
+
+  var DIFFICULTY_LABELS = {
+    easy: 'سهل',
+    medium: 'متوسط',
+    hard: 'صعب',
+    'very-hard': 'صعب جداً',
+    insane: 'جنوني',
+    inhuman: 'لا إنساني'
+  };
+
   var state = {
-    difficulty: 'medium',
-    seed: null,
+    difficulty: 'easy',
     puzzle: null,
-    solution: null,
     playerBoard: null,
     givenCells: null,
     selected: null,
@@ -47,6 +57,40 @@
       map.push(row);
     }
     return map;
+  }
+
+  // سلسلة 81 حرفاً (1-9 و '.') ← مصفوفة 9×9 من أرقام (1-9 و 0).
+  function stringToGrid(str) {
+    if (typeof str !== 'string' || str.length !== 81) return null;
+    var grid = [];
+    for (var r = 0; r < 9; r++) {
+      var row = [];
+      for (var c = 0; c < 9; c++) {
+        var ch = str.charAt(r * 9 + c);
+        if (ch === BLANK_CHAR || ch === '0' || ch === ' ') {
+          row.push(0);
+        } else {
+          var n = parseInt(ch, 10);
+          if (!isFinite(n) || n < 1 || n > 9) return null;
+          row.push(n);
+        }
+      }
+      grid.push(row);
+    }
+    return grid;
+  }
+
+  // مصفوفة 9×9 ← سلسلة 81 حرفاً.
+  function gridToString(grid) {
+    var str = '';
+    for (var r = 0; r < 9; r++) {
+      for (var c = 0; c < 9; c++) {
+        var v = grid[r][c];
+        if (v === 0) str += BLANK_CHAR;
+        else str += String(v);
+      }
+    }
+    return str;
   }
 
   function formatTime(totalSeconds) {
@@ -294,16 +338,24 @@
     persistProgress();
   }
 
-  function checkWin() {
-    if (state.won) return;
-
+  // التحقق من اكتمال اللوحة وصحتها وفق قواعد السودوكو فقط.
+  // يستخدم المحرك عبر تحويل مصفوفة اللاعب إلى سلسلة ثم validate_board.
+  function isCompleteAndValid(grid) {
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
-        if (state.playerBoard[r][c] === 0) return;
+        if (grid[r][c] === 0) return false;
       }
     }
+    var str = gridToString(grid);
+    if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.validate_board !== 'function') {
+      return false;
+    }
+    return sudoku.validate_board(str) === true;
+  }
 
-    if (!validateBoard(state.playerBoard)) return;
+  function checkWin() {
+    if (state.won) return;
+    if (!isCompleteAndValid(state.playerBoard)) return;
 
     state.won = true;
     stopTimer();
@@ -317,7 +369,6 @@
     if (state.won) return;
     saveProgress({
       difficulty: state.difficulty,
-      seed: state.seed,
       puzzle: state.puzzle,
       playerBoard: state.playerBoard,
       elapsedSeconds: state.timerRunning
@@ -327,35 +378,33 @@
     });
   }
 
-  function buildNewPuzzle() {
-    var baseSeed = 'DrDer-Sudoku-' + Date.now();
-    var result = generatePuzzle({
-      difficulty: 'medium',
-      seed: baseSeed,
-      maxAttempts: 10
-    });
+  function generateNewPuzzle(difficulty) {
+    if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
+      return null;
+    }
+    var str = sudoku.generate(difficulty, true);
+    if (typeof str !== 'string' || str.length !== 81) return null;
+    var grid = stringToGrid(str);
+    if (!grid) return null;
+    return grid;
+  }
 
-    if (!result || result.failed || !result.puzzle) {
-      return false;
+  function startPuzzleWithDifficulty(difficulty) {
+    stopTimer();
+    dom.pauseOverlay.hidden = true;
+    dom.winOverlay.hidden = true;
+    dom.pauseBtn.textContent = 'إيقاف';
+    dom.pauseBtn.classList.remove('active');
+
+    var grid = generateNewPuzzle(difficulty);
+    if (!grid) {
+      return;
     }
 
-    var solution = null;
-    if (result.solution) {
-      solution = cloneGrid(result.solution);
-    } else {
-      var solved = solveBoard(result.puzzle);
-      if (solved && solved.solved && solved.board) {
-        solution = cloneGrid(solved.board);
-      }
-    }
-    if (!solution) return false;
-
-    state.difficulty = 'medium';
-    state.seed = result.seed;
-    state.puzzle = cloneGrid(result.puzzle);
-    state.solution = solution;
-    state.playerBoard = cloneGrid(result.puzzle);
-    state.givenCells = buildGivenMap(result.puzzle);
+    state.difficulty = difficulty;
+    state.puzzle = cloneGrid(grid);
+    state.playerBoard = cloneGrid(grid);
+    state.givenCells = buildGivenMap(grid);
     state.history = [];
     state.selected = null;
     state.elapsedSeconds = 0;
@@ -364,21 +413,8 @@
     state.paused = false;
     state.won = false;
 
-    return true;
-  }
-
-  function startNewPuzzle() {
-    stopTimer();
-    dom.pauseOverlay.hidden = true;
-    dom.winOverlay.hidden = true;
-    dom.pauseBtn.textContent = 'إيقاف';
-    dom.pauseBtn.classList.remove('active');
-
-    var ok = buildNewPuzzle();
-    if (!ok) {
-      dom.progressText.textContent = 'تعذر توليد اللغز';
-      return;
-    }
+    dom.startScreen.hidden = true;
+    dom.gameScreen.hidden = false;
 
     updateTimerDisplay();
     renderBoard();
@@ -386,21 +422,22 @@
     persistProgress();
   }
 
+  function showStartScreen() {
+    stopTimer();
+    dom.pauseOverlay.hidden = true;
+    dom.winOverlay.hidden = true;
+    dom.startScreen.hidden = false;
+    dom.gameScreen.hidden = true;
+  }
+
   function resumeSavedProgress() {
     var saved = loadProgress();
     if (!saved) return false;
 
-    var solution = null;
-    var solved = solveBoard(saved.puzzle);
-    if (solved && solved.solved && solved.board) {
-      solution = cloneGrid(solved.board);
-    }
-    if (!solution) return false;
+    if (!saved.puzzle || !saved.playerBoard) return false;
 
-    state.difficulty = saved.difficulty || 'medium';
-    state.seed = saved.seed;
+    state.difficulty = saved.difficulty || 'easy';
     state.puzzle = cloneGrid(saved.puzzle);
-    state.solution = solution;
     state.playerBoard = cloneGrid(saved.playerBoard);
     state.givenCells = buildGivenMap(saved.puzzle);
     state.history = [];
@@ -410,6 +447,9 @@
     state.timerStartedAt = 0;
     state.paused = false;
     state.won = false;
+
+    dom.startScreen.hidden = true;
+    dom.gameScreen.hidden = false;
 
     updateTimerDisplay();
     renderBoard();
@@ -432,6 +472,15 @@
     var num = Number(target.getAttribute('data-num'));
     if (!isFinite(num)) return;
     placeNumber(num);
+  }
+
+  function handleStartButtons(event) {
+    var target = event.target;
+    if (!target || !target.classList || !target.classList.contains('start-btn')) return;
+    var difficulty = target.getAttribute('data-difficulty');
+    if (!difficulty) return;
+    if (!Object.prototype.hasOwnProperty.call(DIFFICULTY_LABELS, difficulty)) return;
+    startPuzzleWithDifficulty(difficulty);
   }
 
   function handleKeyDown(event) {
@@ -464,7 +513,7 @@
       }
       persistProgress();
     } else {
-      if (!state.paused && !state.won) {
+      if (!state.paused && !state.won && !dom.gameScreen.hidden) {
         resumeTimer();
       }
     }
@@ -484,6 +533,8 @@
   }
 
   function init() {
+    dom.startScreen = $('startScreen');
+    dom.gameScreen = $('gameScreen');
     dom.board = $('sudokuBoard');
     dom.timerDisplay = $('timerDisplay');
     dom.progressText = $('progressText');
@@ -495,13 +546,14 @@
 
     createBoardElement();
 
+    dom.startScreen.addEventListener('click', handleStartButtons);
     document.querySelector('.number-pad').addEventListener('click', handleNumberPad);
     $('eraseBtn').addEventListener('click', eraseCell);
     $('undoBtn').addEventListener('click', undoMove);
     $('pauseBtn').addEventListener('click', togglePause);
-    $('newPuzzleBtn').addEventListener('click', startNewPuzzle);
+    $('newPuzzleBtn').addEventListener('click', showStartScreen);
     $('resumeBtn').addEventListener('click', togglePause);
-    $('newGameBtn').addEventListener('click', startNewPuzzle);
+    $('newGameBtn').addEventListener('click', showStartScreen);
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -516,7 +568,7 @@
       resumed = false;
     }
     if (!resumed) {
-      startNewPuzzle();
+      showStartScreen();
     }
 
     registerServiceWorker();
