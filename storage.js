@@ -1,11 +1,8 @@
 // DrDer-Sudoku storage.js
-// وحدة التخزين المحلي. تعتمد على localStorage فقط، ولا تتعامل مع DOM.
-// تحفظ أفضل الأوقات لكل مرحلة، ولا تمسحها عند مسح تقدم اللعب الحالي.
+// تخزين محلي بلغز واحد فقط. لا مراحل، لا أفضل أوقات لكل مرحلة.
 
 var STORAGE_KEYS = {
   progress: 'DrDerSudoku:progress',
-  bestTimes: 'DrDerSudoku:bestTimes',
-  completed: 'DrDerSudoku:completed',
   settings: 'DrDerSudoku:settings',
   history: 'DrDerSudoku:history'
 };
@@ -20,7 +17,7 @@ var DEFAULT_SETTINGS = {
 
 var HISTORY_LIMIT = 300;
 
-var SUPPORTED_DIFFICULTIES = ['easy', 'medium', 'hard', 'expert'];
+var SUPPORTED_DIFFICULTIES = ['easy', 'medium', 'hard'];
 var SUPPORTED_THEMES = ['dark-gold'];
 
 function isPlainInt(v) {
@@ -188,9 +185,6 @@ function safeStringifyJSON(value) {
 function saveProgress(data) {
   if (!data || typeof data !== 'object') return false;
 
-  var level = isPlainInt(data.level) && data.level >= 1 ? data.level : null;
-  if (level === null) return false;
-
   var difficulty = isValidDifficulty(data.difficulty) ? data.difficulty : null;
   if (difficulty === null) return false;
 
@@ -207,7 +201,6 @@ function saveProgress(data) {
   var seed = data.seed !== undefined && data.seed !== null ? String(data.seed) : null;
 
   var payload = {
-    level: level,
     difficulty: difficulty,
     seed: seed,
     puzzle: puzzle,
@@ -228,9 +221,6 @@ function loadProgress() {
   var parsed = safeParseJSON(text);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
 
-  var level = isPlainInt(parsed.level) && parsed.level >= 1 ? parsed.level : null;
-  if (level === null) return null;
-
   var difficulty = isValidDifficulty(parsed.difficulty) ? parsed.difficulty : null;
   if (difficulty === null) return null;
 
@@ -247,7 +237,6 @@ function loadProgress() {
   var seed = parsed.seed !== undefined && parsed.seed !== null ? String(parsed.seed) : null;
 
   return {
-    level: level,
     difficulty: difficulty,
     seed: seed,
     puzzle: puzzle,
@@ -259,93 +248,6 @@ function loadProgress() {
 
 function clearProgress() {
   return safeRemoveItem(STORAGE_KEYS.progress);
-}
-
-function loadBestTimesMap() {
-  var text = safeGetItem(STORAGE_KEYS.bestTimes);
-  if (text === null) return {};
-  var parsed = safeParseJSON(text);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-  var cleaned = {};
-  for (var key in parsed) {
-    if (!Object.prototype.hasOwnProperty.call(parsed, key)) continue;
-    var levelNum = Number(key);
-    if (!isPlainInt(levelNum) || levelNum < 1) continue;
-    var value = parsed[key];
-    if (!isPlainInt(value) || value < 0) continue;
-    cleaned[String(levelNum)] = value;
-  }
-  return cleaned;
-}
-
-function saveBestTime(level, seconds) {
-  if (!isPlainInt(level) || level < 1) return false;
-  if (!isPlainInt(seconds) || seconds < 0) return false;
-  var map = loadBestTimesMap();
-  var key = String(level);
-  var current = map[key];
-  if (isPlainInt(current) && current <= seconds) return true;
-  map[key] = seconds;
-  var text = safeStringifyJSON(map);
-  if (text === null) return false;
-  return safeSetItem(STORAGE_KEYS.bestTimes, text);
-}
-
-function getBestTime(level) {
-  if (!isPlainInt(level) || level < 1) return null;
-  var map = loadBestTimesMap();
-  var value = map[String(level)];
-  if (isPlainInt(value) && value >= 0) return value;
-  return null;
-}
-
-function loadCompletedMap() {
-  var text = safeGetItem(STORAGE_KEYS.completed);
-  if (text === null) return {};
-  var parsed = safeParseJSON(text);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-  var cleaned = {};
-  for (var key in parsed) {
-    if (!Object.prototype.hasOwnProperty.call(parsed, key)) continue;
-    var levelNum = Number(key);
-    if (!isPlainInt(levelNum) || levelNum < 1) continue;
-    var entry = parsed[key];
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
-    cleaned[String(levelNum)] = entry;
-  }
-  return cleaned;
-}
-
-function saveCompletedLevel(level, data) {
-  if (!isPlainInt(level) || level < 1) return false;
-  var payload = {
-    level: level,
-    seconds: (data && isPlainInt(data.seconds) && data.seconds >= 0) ? data.seconds : null,
-    difficulty: (data && isValidDifficulty(data.difficulty)) ? data.difficulty : null,
-    completedAt: Date.now()
-  };
-  var map = loadCompletedMap();
-  map[String(level)] = payload;
-  var text = safeStringifyJSON(map);
-  if (text === null) return false;
-  return safeSetItem(STORAGE_KEYS.completed, text);
-}
-
-function getCompletedLevel(level) {
-  if (!isPlainInt(level) || level < 1) return null;
-  var map = loadCompletedMap();
-  var entry = map[String(level)];
-  if (!entry || typeof entry !== 'object') return null;
-  var entryLevel = isPlainInt(entry.level) && entry.level >= 1 ? entry.level : level;
-  var seconds = isPlainInt(entry.seconds) && entry.seconds >= 0 ? entry.seconds : null;
-  var difficulty = isValidDifficulty(entry.difficulty) ? entry.difficulty : null;
-  var completedAt = isPlainInt(entry.completedAt) ? entry.completedAt : null;
-  return {
-    level: entryLevel,
-    seconds: seconds,
-    difficulty: difficulty,
-    completedAt: completedAt
-  };
 }
 
 function saveSettings(settings) {
