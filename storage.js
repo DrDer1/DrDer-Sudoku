@@ -1,10 +1,9 @@
 // DrDer-Sudoku storage.js
-// تخزين محلي بلغز واحد فقط. لا مراحل، لا أفضل أوقات لكل مرحلة.
+// تخزين محلي بسيط للغز الحالي. لا مراحل، لا أفضل أوقات، لا حل مخزّن.
 
 var STORAGE_KEYS = {
   progress: 'DrDerSudoku:progress',
-  settings: 'DrDerSudoku:settings',
-  history: 'DrDerSudoku:history'
+  settings: 'DrDerSudoku:settings'
 };
 
 var DEFAULT_SETTINGS = {
@@ -15,9 +14,7 @@ var DEFAULT_SETTINGS = {
   theme: 'dark-gold'
 };
 
-var HISTORY_LIMIT = 300;
-
-var SUPPORTED_DIFFICULTIES = ['easy', 'medium', 'hard'];
+var SUPPORTED_DIFFICULTIES = ['easy', 'medium', 'hard', 'very-hard', 'insane', 'inhuman'];
 var SUPPORTED_THEMES = ['dark-gold'];
 
 function isPlainInt(v) {
@@ -198,11 +195,9 @@ function saveProgress(data) {
 
   var elapsedSeconds = isPlainInt(data.elapsedSeconds) && data.elapsedSeconds >= 0 ? data.elapsedSeconds : 0;
   var paused = data.paused === true;
-  var seed = data.seed !== undefined && data.seed !== null ? String(data.seed) : null;
 
   var payload = {
     difficulty: difficulty,
-    seed: seed,
     puzzle: puzzle,
     playerBoard: playerBoard,
     elapsedSeconds: elapsedSeconds,
@@ -234,11 +229,9 @@ function loadProgress() {
 
   var elapsedSeconds = isPlainInt(parsed.elapsedSeconds) && parsed.elapsedSeconds >= 0 ? parsed.elapsedSeconds : 0;
   var paused = parsed.paused === true;
-  var seed = parsed.seed !== undefined && parsed.seed !== null ? String(parsed.seed) : null;
 
   return {
     difficulty: difficulty,
-    seed: seed,
     puzzle: puzzle,
     playerBoard: playerBoard,
     elapsedSeconds: elapsedSeconds,
@@ -275,42 +268,4 @@ function loadSettings() {
     autoRemoveNotes: typeof parsed.autoRemoveNotes === 'boolean' ? parsed.autoRemoveNotes : DEFAULT_SETTINGS.autoRemoveNotes,
     theme: isValidTheme(parsed.theme) ? parsed.theme : DEFAULT_SETTINGS.theme
   };
-}
-
-function loadPuzzleHistory() {
-  var text = safeGetItem(STORAGE_KEYS.history);
-  if (text === null) return [];
-  var parsed = safeParseJSON(text);
-  if (!Array.isArray(parsed)) return [];
-  var cleaned = [];
-  var seen = {};
-  for (var i = 0; i < parsed.length; i++) {
-    var item = parsed[i];
-    var sig = null;
-    if (typeof item === 'string' && item.length > 0) {
-      sig = item;
-    } else if (item && typeof item === 'object' && typeof item.signature === 'string' && item.signature.length > 0) {
-      sig = item.signature;
-    }
-    if (sig === null) continue;
-    if (seen[sig]) continue;
-    seen[sig] = true;
-    cleaned.push(sig);
-  }
-  return cleaned;
-}
-
-function savePuzzleHistory(signature) {
-  if (typeof signature !== 'string' || signature.length === 0) return false;
-  var history = loadPuzzleHistory();
-  for (var i = 0; i < history.length; i++) {
-    if (history[i] === signature) return true;
-  }
-  history.push(signature);
-  while (history.length > HISTORY_LIMIT) {
-    history.shift();
-  }
-  var text = safeStringifyJSON(history);
-  if (text === null) return false;
-  return safeSetItem(STORAGE_KEYS.history, text);
 }
