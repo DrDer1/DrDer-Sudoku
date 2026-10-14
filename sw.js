@@ -1,7 +1,7 @@
 // DrDer-Sudoku sw.js
 // Service Worker لتخزين ملفات التطبيق الأساسية وتشغيله دون اتصال.
 
-var CACHE_VERSION = 'drder-sudoku-v7';
+var CACHE_VERSION = 'drder-sudoku-v4';
 var CACHE_NAME = CACHE_VERSION;
 
 var APP_SHELL = [
