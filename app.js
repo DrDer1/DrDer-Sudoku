@@ -285,7 +285,7 @@
     return conflicts;
   }
 
-  // يلوّن كل الخلايا المتعارضة، بما فيها الخلية التي تحتوي على الخطأ الآخر.
+  // يبرز الخلية المحددة ونظيراتها، ويظهر جميع التعارضات بالأحمر.
   function applyHighlights() {
     var sel = state.selected;
 
@@ -316,8 +316,6 @@
       }
     }
 
-    // لا نعتمد على الخلية المحددة أو على نتيجة التلميح.
-    // تُحسب التعارضات في كامل اللوحة بعد كل إعادة رسم.
     var conflicts = computeConflicts(state.playerBoard);
 
     for (var key in conflicts) {
@@ -511,18 +509,11 @@
     return true;
   }
 
-  // يتحقق من عدم تعارض الرقم مع الرقعة الحالية.
-  // لا تستخدم هذه الدالة عند تطبيق التلميح.
+  // يتحقق من عدم تعارض الرقم مع بقية الخلايا.
   function isSafePlacement(row, col, num) {
     if (!isValidCoordinate(row, col)) return false;
     if (!isPlainInt(num) || num < 1 || num > 9) return false;
     if (!isValidBoardShape(state.playerBoard)) return false;
-
-    var current = state.playerBoard[row][col];
-
-    if (current !== 0 && current !== num) {
-      return false;
-    }
 
     for (var c = 0; c < 9; c++) {
       if (c !== col && state.playerBoard[row][c] === num) {
@@ -610,8 +601,7 @@
     return true;
   }
 
-  // يتحقق من أن الحل المرجعي يطابق الأرقام الأصلية فقط.
-  // لا يفحص أرقام اللاعب، لأن تعارضها لا يجب أن يمنع التلميح.
+  // يضمن أن الحل المرجعي حل كامل وصحيح ويطابق الأرقام الأصلية.
   function solutionMatchesPuzzle(solution, puzzle) {
     if (!isCompleteValidSolution(solution)) return false;
     if (!isValidBoardShape(puzzle)) return false;
@@ -629,23 +619,48 @@
     return true;
   }
 
-  function showHintMessage(message) {
-    window.alert(message);
-  }
-
   /*
-   * يضع الإجابة المرجعية في الخلية الفارغة.
-   * لا يرفض التلميح بسبب أي تعارض مع إدخالات اللاعب.
+   * التلميح:
+   * - الخلايا الأصلية لا تتغير.
+   * - الخلايا الفارغة أو التي أدخل اللاعب فيها رقماً قابلة للتلميح.
+   * - الرقم يؤخذ من الحل المرجعي الصحيح للمرحلة.
+   * - تعارضات الخلايا الأخرى لا تمنع التلميح.
+   * - لا تظهر أي رسائل للمستخدم.
    */
-  function applyHintCell(row, col, num) {
-    if (!isValidCoordinate(row, col)) return false;
-    if (!isPlainInt(num) || num < 1 || num > 9) return false;
-    if (!state.givenCells || state.givenCells[row][col]) return false;
-    if (state.playerBoard[row][col] !== 0) return false;
+  function applyHint() {
+    if (state.paused || state.won || !state.selected) return;
+
+    var row = state.selected.row;
+    var col = state.selected.col;
+
+    if (!isValidCoordinate(row, col)) return;
+
+    if (
+      !state.playerBoard ||
+      !state.puzzle ||
+      !state.givenCells ||
+      !state.solution
+    ) {
+      return;
+    }
+
+    // لا تغيّر الأرقام التي جاءت مع اللغز.
+    if (state.givenCells[row][col]) return;
+
+    // لا تعتمد على تعارضات لوحة اللاعب.
+    if (!solutionMatchesPuzzle(state.solution, state.puzzle)) return;
+
+    var answer = state.solution[row][col];
+
+    if (!isPlainInt(answer) || answer < 1 || answer > 9) return;
 
     var previous = state.playerBoard[row][col];
 
-    state.playerBoard[row][col] = num;
+    // إذا كانت الخانة تحتوي بالفعل على الإجابة الصحيحة، فلا حاجة للتغيير.
+    if (previous === answer) return;
+
+    // استبدال الرقم الخاطئ أو ملء الخانة الفارغة بالإجابة الصحيحة.
+    state.playerBoard[row][col] = answer;
 
     recordHistory({
       row: row,
@@ -656,80 +671,10 @@
     state.hintedCells[row + '_' + col] = true;
     state.selected = { row: row, col: col };
 
+    // يعيد التلوين حساب التعارضات في كامل اللوحة.
     renderBoard();
     checkWin();
     persistProgress();
-
-    return true;
-  }
-
-  /*
-   * التلميح المرجعي:
-   * - يأخذ الرقم مباشرة من state.solution.
-   * - لا يستعمل getHintForCell.
-   * - لا يستعمل solveCurrentBoard.
-   * - لا يفحص تعارضات لوحة اللاعب.
-   */
-  function applyHint() {
-    if (state.paused || state.won) return;
-
-    if (!state.selected) {
-      showHintMessage('حدد خلية فارغة أولاً للحصول على تلميح.');
-      return;
-    }
-
-    var row = state.selected.row;
-    var col = state.selected.col;
-
-    if (!isValidCoordinate(row, col)) {
-      showHintMessage('تعذر تحديد الخلية.');
-      return;
-    }
-
-    if (
-      !state.playerBoard ||
-      !state.puzzle ||
-      !state.givenCells ||
-      !state.solution
-    ) {
-      showHintMessage('بيانات المرحلة غير مكتملة. أعد تحميل المرحلة.');
-      return;
-    }
-
-    if (state.givenCells[row][col]) {
-      showHintMessage('هذه خلية أصلية ولا تحتاج إلى تلميح.');
-      return;
-    }
-
-    if (state.playerBoard[row][col] !== 0) {
-      showHintMessage('اختر خلية فارغة للحصول على التلميح.');
-      return;
-    }
-
-    if (!isValidBoardShape(state.playerBoard)) {
-      showHintMessage('بيانات الرقعة غير صالحة.');
-      return;
-    }
-
-    // نتحقق من الحل الأصلي للمرحلة، ولا نفحص إدخالات اللاعب.
-    if (!solutionMatchesPuzzle(state.solution, state.puzzle)) {
-      showHintMessage(
-        'الحل المرجعي للمرحلة غير صالح أو لا يطابق الأرقام الأصلية. لم يتم تغيير الرقعة.'
-      );
-      return;
-    }
-
-    var hint = state.solution[row][col];
-
-    if (!isPlainInt(hint) || hint < 1 || hint > 9) {
-      showHintMessage('لا يوجد رقم صالح لهذه الخلية في الحل المرجعي.');
-      return;
-    }
-
-    // لا يوجد فحص للتعارض هنا؛ ضع الإجابة الصحيحة مباشرة.
-    if (!applyHintCell(row, col, hint)) {
-      showHintMessage('تعذر تطبيق التلميح.');
-    }
   }
 
   function togglePause() {
