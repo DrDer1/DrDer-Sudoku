@@ -2,7 +2,7 @@
 // Service Worker متوافق مع GitHub Pages (مسار فرعي /DrDer-Sudoku/).
 // يخزّن ملفات التطبيق الأساسية ويعمل دون اتصال.
 
-var CACHE_VERSION = 'drder-sudoku-v4';
+var CACHE_VERSION = 'drder-sudoku-v1';
 var CACHE_NAME = CACHE_VERSION;
 
 // نحسب المسار الأساسي من موقع الـ Service Worker نفسه.
