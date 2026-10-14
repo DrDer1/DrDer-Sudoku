@@ -17,25 +17,26 @@
 </head>
 <body>
 
-<header class="app-header" id="appHeader">
-  <h1 class="app-title">DrDer Sudoku</h1>
-</header>
+<section class="start-screen" id="startScreen" aria-label="شاشة البداية">
+  <h1 class="start-title">DrDer Sudoku</h1>
+  <p class="start-text">اختر مستوى اللعب</p>
+  <div class="start-buttons">
+    <button type="button" class="start-btn" data-difficulty="easy">سهل</button>
+    <button type="button" class="start-btn" data-difficulty="medium">متوسط</button>
+    <button type="button" class="start-btn" data-difficulty="hard">صعب</button>
+    <button type="button" class="start-btn" data-difficulty="very-hard">صعب جداً</button>
+    <button type="button" class="start-btn" data-difficulty="insane">جنوني</button>
+    <button type="button" class="start-btn" data-difficulty="inhuman">لا إنساني</button>
+  </div>
+</section>
 
-<main class="app-main">
+<section class="game-screen" id="gameScreen" hidden aria-label="شاشة اللعب">
 
-  <section class="start-screen" id="startScreen" aria-label="اختيار الصعوبة">
-    <p class="start-text">اختر مستوى اللعب</p>
-    <div class="start-buttons">
-      <button type="button" class="start-btn" data-difficulty="easy">سهل</button>
-      <button type="button" class="start-btn" data-difficulty="medium">متوسط</button>
-      <button type="button" class="start-btn" data-difficulty="hard">صعب</button>
-      <button type="button" class="start-btn" data-difficulty="very-hard">صعب جداً</button>
-      <button type="button" class="start-btn" data-difficulty="insane">جنوني</button>
-      <button type="button" class="start-btn" data-difficulty="inhuman">لا إنساني</button>
-    </div>
-  </section>
+  <header class="app-header" id="appHeader">
+    <h1 class="app-title">DrDer Sudoku</h1>
+  </header>
 
-  <section class="game-screen" id="gameScreen" hidden>
+  <main class="app-main">
 
     <section class="status-bar" aria-label="معلومات اللعب">
       <div class="status-item">
@@ -74,9 +75,9 @@
       </div>
     </section>
 
-  </section>
+  </main>
 
-</main>
+</section>
 
 <div class="overlay" id="pauseOverlay" hidden>
   <div class="overlay-card">
