@@ -23,41 +23,57 @@
 
 <main class="app-main">
 
-  <section class="status-bar" aria-label="معلومات اللعب">
-    <div class="status-item">
-      <span class="status-label">الوقت</span>
-      <span class="status-value" id="timerDisplay">00:00</span>
+  <section class="start-screen" id="startScreen" aria-label="اختيار الصعوبة">
+    <p class="start-text">اختر مستوى اللعب</p>
+    <div class="start-buttons">
+      <button type="button" class="start-btn" data-difficulty="easy">سهل</button>
+      <button type="button" class="start-btn" data-difficulty="medium">متوسط</button>
+      <button type="button" class="start-btn" data-difficulty="hard">صعب</button>
+      <button type="button" class="start-btn" data-difficulty="very-hard">صعب جداً</button>
+      <button type="button" class="start-btn" data-difficulty="insane">جنوني</button>
+      <button type="button" class="start-btn" data-difficulty="inhuman">لا إنساني</button>
     </div>
   </section>
 
-  <section class="board-wrapper" aria-label="شبكة السودوكو">
-    <div class="sudoku-board" id="sudokuBoard" role="grid" aria-label="شبكة سودوكو 9×9"></div>
-  </section>
+  <section class="game-screen" id="gameScreen" hidden>
 
-  <section class="number-pad" aria-label="لوحة الأرقام">
-    <button type="button" class="num-btn" data-num="1">1</button>
-    <button type="button" class="num-btn" data-num="2">2</button>
-    <button type="button" class="num-btn" data-num="3">3</button>
-    <button type="button" class="num-btn" data-num="4">4</button>
-    <button type="button" class="num-btn" data-num="5">5</button>
-    <button type="button" class="num-btn" data-num="6">6</button>
-    <button type="button" class="num-btn" data-num="7">7</button>
-    <button type="button" class="num-btn" data-num="8">8</button>
-    <button type="button" class="num-btn" data-num="9">9</button>
-  </section>
+    <section class="status-bar" aria-label="معلومات اللعب">
+      <div class="status-item">
+        <span class="status-label">الوقت</span>
+        <span class="status-value" id="timerDisplay">00:00</span>
+      </div>
+    </section>
 
-  <section class="actions" aria-label="أدوات اللعب">
-    <button type="button" class="action-btn" id="eraseBtn">مسح</button>
-    <button type="button" class="action-btn" id="undoBtn">تراجع</button>
-    <button type="button" class="action-btn" id="pauseBtn">إيقاف</button>
-    <button type="button" class="action-btn" id="newPuzzleBtn">لغز جديد</button>
-  </section>
+    <section class="board-wrapper" aria-label="شبكة السودوكو">
+      <div class="sudoku-board" id="sudokuBoard" role="grid" aria-label="شبكة سودوكو 9×9"></div>
+    </section>
 
-  <section class="progress-bar" aria-label="مؤشر التقدم">
-    <span class="progress-text" id="progressText">0 / 81</span>
-    <div class="progress-track">
-      <div class="progress-fill" id="progressFill"></div>
-    </div>
+    <section class="number-pad" aria-label="لوحة الأرقام">
+      <button type="button" class="num-btn" data-num="1">1</button>
+      <button type="button" class="num-btn" data-num="2">2</button>
+      <button type="button" class="num-btn" data-num="3">3</button>
+      <button type="button" class="num-btn" data-num="4">4</button>
+      <button type="button" class="num-btn" data-num="5">5</button>
+      <button type="button" class="num-btn" data-num="6">6</button>
+      <button type="button" class="num-btn" data-num="7">7</button>
+      <button type="button" class="num-btn" data-num="8">8</button>
+      <button type="button" class="num-btn" data-num="9">9</button>
+    </section>
+
+    <section class="actions" aria-label="أدوات اللعب">
+      <button type="button" class="action-btn" id="eraseBtn">مسح</button>
+      <button type="button" class="action-btn" id="undoBtn">تراجع</button>
+      <button type="button" class="action-btn" id="pauseBtn">إيقاف</button>
+      <button type="button" class="action-btn" id="newPuzzleBtn">لغز جديد</button>
+    </section>
+
+    <section class="progress-bar" aria-label="مؤشر التقدم">
+      <span class="progress-text" id="progressText">0 / 81</span>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </section>
+
   </section>
 
 </main>
