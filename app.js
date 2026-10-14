@@ -4,6 +4,7 @@
 // وعلى storage.js (تخزين محلي).
 // التحويل بين مصفوفة 9×9 وسلسلة 81 حرفاً يجري محلياً في هذا الملف.
 // لا مراحل، لا تلميح، لا حل مخزّن. الفوز يُحتسب وفق قواعد السودوكو.
+// تم تعطيل التحقق من تفرد الحل لتسريع التوليد في المستويات العالية.
 // متوافق مع GitHub Pages على المسار الفرعي /DrDer-Sudoku/.
 
 (function () {
@@ -395,13 +396,15 @@
     });
   }
 
+  // التوليد بدون التحقق من تفرد الحل.
+  // المعامل الثاني false يعني عدم اشتراط الحل الوحيد، وهذا يسرّع التوليد كثيرًا.
   function generateNewPuzzle(difficulty) {
     if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
       return null;
     }
     var str = null;
     try {
-      str = sudoku.generate(difficulty, true);
+      str = sudoku.generate(difficulty, false);
     } catch (e) {
       str = null;
     }
@@ -421,9 +424,7 @@
     }
 
     var grid = generateNewPuzzle(difficulty);
-    if (!grid) {
-      return;
-    }
+    if (!grid) return;
 
     state.difficulty = difficulty;
     state.puzzle = cloneGrid(grid);
