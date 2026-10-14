@@ -1,19 +1,26 @@
 // DrDer-Sudoku sw.js
-// Service Worker لتخزين ملفات التطبيق الأساسية وتشغيله دون اتصال.
+// Service Worker متوافق مع GitHub Pages (مسار فرعي /DrDer-Sudoku/).
+// يخزّن ملفات التطبيق الأساسية ويعمل دون اتصال.
 
 var CACHE_VERSION = 'drder-sudoku-v4';
 var CACHE_NAME = CACHE_VERSION;
 
+// نحسب المسار الأساسي من موقع الـ Service Worker نفسه.
+// هذا يضمن أن الروابط تعمل سواء نُشر التطبيق في جذر النطاق أو في مسار فرعي.
+var SCOPE_URL = self.registration && self.registration.scope
+  ? self.registration.scope
+  : self.location.href.replace(/sw\.js(\?.*)?$/, '');
+
 var APP_SHELL = [
-  './',
-  './index.html',
-  './style.css',
-  './engine.js',
-  './storage.js',
-  './app.js',
-  './manifest.json',
-  './192.png',
-  './512.png'
+  SCOPE_URL,
+  SCOPE_URL + 'index.html',
+  SCOPE_URL + 'style.css',
+  SCOPE_URL + 'engine.js',
+  SCOPE_URL + 'storage.js',
+  SCOPE_URL + 'app.js',
+  SCOPE_URL + 'manifest.json',
+  SCOPE_URL + '192.png',
+  SCOPE_URL + '512.png'
 ];
 
 self.addEventListener('install', function (event) {
@@ -75,7 +82,7 @@ self.addEventListener('fetch', function (event) {
         }).catch(function () {});
         return response;
       }).catch(function () {
-        return caches.match('./index.html').then(function (fallback) {
+        return caches.match(SCOPE_URL + 'index.html').then(function (fallback) {
           if (fallback) return fallback;
           return new Response('', { status: 504, statusText: 'Offline' });
         });
