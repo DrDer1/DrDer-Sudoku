@@ -11,14 +11,7 @@
 
   var BLANK_CHAR = '.';
 
-  var DIFFICULTY_LABELS = {
-    easy: 'سهل',
-    medium: 'متوسط',
-    hard: 'صعب',
-    'very-hard': 'صعب جداً',
-    insane: 'جنوني',
-    inhuman: 'لا إنساني'
-  };
+  var DIFFICULTY_KEYS = ['easy', 'medium', 'hard', 'very-hard', 'insane', 'inhuman'];
 
   var state = {
     difficulty: 'easy',
@@ -39,6 +32,14 @@
 
   function $(id) {
     return document.getElementById(id);
+  }
+
+  function isKnownDifficulty(name) {
+    if (typeof name !== 'string') return false;
+    for (var i = 0; i < DIFFICULTY_KEYS.length; i++) {
+      if (DIFFICULTY_KEYS[i] === name) return true;
+    }
+    return false;
   }
 
   function cloneGrid(grid) {
@@ -103,7 +104,9 @@
   }
 
   function updateTimerDisplay() {
-    dom.timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    if (dom.timerDisplay) {
+      dom.timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    }
   }
 
   function startTimer() {
@@ -141,6 +144,7 @@
 
   function tickTimer() {
     if (!state.timerRunning) return;
+    if (!dom.timerDisplay) return;
     var now = Date.now();
     var delta = Math.floor((now - state.timerStartedAt) / 1000);
     var total = state.elapsedSeconds + delta;
@@ -149,6 +153,7 @@
 
   function createBoardElement() {
     var board = $('sudokuBoard');
+    if (!board) return;
     board.innerHTML = '';
     cellsMatrix = [];
 
@@ -180,10 +185,12 @@
   }
 
   function renderBoard() {
+    if (!cellsMatrix || !state.playerBoard) return;
     var r, c, el, value;
     for (r = 0; r < 9; r++) {
       for (c = 0; c < 9; c++) {
         el = cellsMatrix[r][c];
+        if (!el) continue;
         value = state.playerBoard[r][c];
         el.textContent = value === 0 ? '' : String(value);
 
@@ -242,6 +249,7 @@
       for (var c = 0; c < 9; c++) {
         if (r === sel.row && c === sel.col) continue;
         var cell = cellsMatrix[r][c];
+        if (!cell) continue;
         if (r === sel.row || c === sel.col) cell.classList.add('peer');
         if (selVal !== 0 && state.playerBoard[r][c] === selVal) cell.classList.add('same-number');
       }
@@ -258,13 +266,15 @@
 
   function updateProgress() {
     var filled = 0;
-    for (var r = 0; r < 9; r++) {
-      for (var c = 0; c < 9; c++) {
-        if (state.playerBoard[r][c] !== 0) filled++;
+    if (state.playerBoard) {
+      for (var r = 0; r < 9; r++) {
+        for (var c = 0; c < 9; c++) {
+          if (state.playerBoard[r][c] !== 0) filled++;
+        }
       }
     }
-    dom.progressText.textContent = filled + ' / 81';
-    dom.progressFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
+    if (dom.progressText) dom.progressText.textContent = filled + ' / 81';
+    if (dom.progressFill) dom.progressFill.style.width = (filled / 81 * 100).toFixed(1) + '%';
   }
 
   function selectCell(row, col) {
@@ -281,6 +291,7 @@
   function placeNumber(num) {
     if (state.paused || state.won) return;
     if (!state.selected) return;
+    if (!state.playerBoard || !state.givenCells) return;
     var r = state.selected.row;
     var c = state.selected.col;
     if (state.givenCells[r][c]) return;
@@ -298,6 +309,7 @@
   function eraseCell() {
     if (state.paused || state.won) return;
     if (!state.selected) return;
+    if (!state.playerBoard || !state.givenCells) return;
     var r = state.selected.row;
     var c = state.selected.col;
     if (state.givenCells[r][c]) return;
@@ -312,6 +324,7 @@
   function undoMove() {
     if (state.paused || state.won) return;
     if (state.history.length === 0) return;
+    if (!state.playerBoard || !state.givenCells) return;
     var entry = state.history.pop();
     if (!entry) return;
     if (state.givenCells[entry.row][entry.col]) return;
@@ -324,16 +337,20 @@
     if (state.won) return;
     if (state.paused) {
       state.paused = false;
-      dom.pauseOverlay.hidden = true;
-      dom.pauseBtn.textContent = 'إيقاف';
-      dom.pauseBtn.classList.remove('active');
+      if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
+      if (dom.pauseBtn) {
+        dom.pauseBtn.textContent = 'إيقاف';
+        dom.pauseBtn.classList.remove('active');
+      }
       resumeTimer();
     } else {
       state.paused = true;
       pauseTimer();
-      dom.pauseOverlay.hidden = false;
-      dom.pauseBtn.textContent = 'استكمال';
-      dom.pauseBtn.classList.add('active');
+      if (dom.pauseOverlay) dom.pauseOverlay.hidden = false;
+      if (dom.pauseBtn) {
+        dom.pauseBtn.textContent = 'استكمال';
+        dom.pauseBtn.classList.add('active');
+      }
     }
     persistProgress();
   }
@@ -353,18 +370,20 @@
 
   function checkWin() {
     if (state.won) return;
+    if (!state.playerBoard) return;
     if (!isCompleteAndValid(state.playerBoard)) return;
 
     state.won = true;
     stopTimer();
     var time = state.elapsedSeconds;
-    dom.winTime.textContent = formatTime(time);
-    dom.winOverlay.hidden = false;
+    if (dom.winTime) dom.winTime.textContent = formatTime(time);
+    if (dom.winOverlay) dom.winOverlay.hidden = false;
     clearProgress();
   }
 
   function persistProgress() {
     if (state.won) return;
+    if (!state.puzzle || !state.playerBoard) return;
     saveProgress({
       difficulty: state.difficulty,
       puzzle: state.puzzle,
@@ -380,22 +399,31 @@
     if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
       return null;
     }
-    var str = sudoku.generate(difficulty, true);
+    var str = null;
+    try {
+      str = sudoku.generate(difficulty, true);
+    } catch (e) {
+      str = null;
+    }
     if (typeof str !== 'string' || str.length !== 81) return null;
-    var grid = stringToGrid(str);
-    if (!grid) return null;
-    return grid;
+    return stringToGrid(str);
   }
 
   function startPuzzleWithDifficulty(difficulty) {
+    if (!isKnownDifficulty(difficulty)) return;
+
     stopTimer();
-    dom.pauseOverlay.hidden = true;
-    dom.winOverlay.hidden = true;
-    dom.pauseBtn.textContent = 'إيقاف';
-    dom.pauseBtn.classList.remove('active');
+    if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
+    if (dom.winOverlay) dom.winOverlay.hidden = true;
+    if (dom.pauseBtn) {
+      dom.pauseBtn.textContent = 'إيقاف';
+      dom.pauseBtn.classList.remove('active');
+    }
 
     var grid = generateNewPuzzle(difficulty);
-    if (!grid) return;
+    if (!grid) {
+      return;
+    }
 
     state.difficulty = difficulty;
     state.puzzle = cloneGrid(grid);
@@ -409,8 +437,8 @@
     state.paused = false;
     state.won = false;
 
-    dom.startScreen.hidden = true;
-    dom.gameScreen.hidden = false;
+    if (dom.startScreen) dom.startScreen.hidden = true;
+    if (dom.gameScreen) dom.gameScreen.hidden = false;
 
     updateTimerDisplay();
     renderBoard();
@@ -420,10 +448,10 @@
 
   function showStartScreen() {
     stopTimer();
-    dom.pauseOverlay.hidden = true;
-    dom.winOverlay.hidden = true;
-    dom.startScreen.hidden = false;
-    dom.gameScreen.hidden = true;
+    if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
+    if (dom.winOverlay) dom.winOverlay.hidden = true;
+    if (dom.startScreen) dom.startScreen.hidden = false;
+    if (dom.gameScreen) dom.gameScreen.hidden = true;
   }
 
   function resumeSavedProgress() {
@@ -431,7 +459,7 @@
     if (!saved) return false;
     if (!saved.puzzle || !saved.playerBoard) return false;
 
-    state.difficulty = saved.difficulty || 'easy';
+    state.difficulty = isKnownDifficulty(saved.difficulty) ? saved.difficulty : 'easy';
     state.puzzle = cloneGrid(saved.puzzle);
     state.playerBoard = cloneGrid(saved.playerBoard);
     state.givenCells = buildGivenMap(saved.puzzle);
@@ -443,8 +471,8 @@
     state.paused = false;
     state.won = false;
 
-    dom.startScreen.hidden = true;
-    dom.gameScreen.hidden = false;
+    if (dom.startScreen) dom.startScreen.hidden = true;
+    if (dom.gameScreen) dom.gameScreen.hidden = false;
 
     updateTimerDisplay();
     renderBoard();
@@ -471,16 +499,21 @@
 
   function handleStartButtons(event) {
     var target = event.target;
-    if (!target || !target.classList || !target.classList.contains('start-btn')) return;
-    var difficulty = target.getAttribute('data-difficulty');
-    if (!difficulty) return;
-    if (!Object.prototype.hasOwnProperty.call(DIFFICULTY_LABELS, difficulty)) return;
-    startPuzzleWithDifficulty(difficulty);
+    while (target && target !== dom.startScreen) {
+      if (target.classList && target.classList.contains('start-btn')) {
+        var difficulty = target.getAttribute('data-difficulty');
+        if (isKnownDifficulty(difficulty)) {
+          startPuzzleWithDifficulty(difficulty);
+        }
+        return;
+      }
+      target = target.parentNode;
+    }
   }
 
   function handleKeyDown(event) {
     if (state.paused || state.won) return;
-    if (dom.gameScreen.hidden) return;
+    if (dom.gameScreen && dom.gameScreen.hidden) return;
     var key = event.key;
     if (key >= '1' && key <= '9') {
       placeNumber(Number(key));
@@ -509,7 +542,7 @@
       }
       persistProgress();
     } else {
-      if (!state.paused && !state.won && !dom.gameScreen.hidden) {
+      if (!state.paused && !state.won && dom.gameScreen && !dom.gameScreen.hidden) {
         resumeTimer();
       }
     }
@@ -546,14 +579,29 @@
 
     createBoardElement();
 
-    dom.startScreen.addEventListener('click', handleStartButtons);
-    document.querySelector('.number-pad').addEventListener('click', handleNumberPad);
-    $('eraseBtn').addEventListener('click', eraseCell);
-    $('undoBtn').addEventListener('click', undoMove);
-    $('pauseBtn').addEventListener('click', togglePause);
-    $('newPuzzleBtn').addEventListener('click', showStartScreen);
-    $('resumeBtn').addEventListener('click', togglePause);
-    $('newGameBtn').addEventListener('click', showStartScreen);
+    if (dom.startScreen) {
+      dom.startScreen.addEventListener('click', handleStartButtons);
+    }
+
+    var numberPad = document.querySelector('.number-pad');
+    if (numberPad) numberPad.addEventListener('click', handleNumberPad);
+
+    var eraseBtn = $('eraseBtn');
+    if (eraseBtn) eraseBtn.addEventListener('click', eraseCell);
+
+    var undoBtn = $('undoBtn');
+    if (undoBtn) undoBtn.addEventListener('click', undoMove);
+
+    if (dom.pauseBtn) dom.pauseBtn.addEventListener('click', togglePause);
+
+    var newPuzzleBtn = $('newPuzzleBtn');
+    if (newPuzzleBtn) newPuzzleBtn.addEventListener('click', showStartScreen);
+
+    var resumeBtn = $('resumeBtn');
+    if (resumeBtn) resumeBtn.addEventListener('click', togglePause);
+
+    var newGameBtn = $('newGameBtn');
+    if (newGameBtn) newGameBtn.addEventListener('click', showStartScreen);
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('visibilitychange', handleVisibilityChange);
