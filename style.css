@@ -30,50 +30,38 @@ html, body {
 }
 
 body {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
 }
 
-.app-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--bg-app);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 12px;
-  text-align: center;
-}
-
-.app-title {
-  margin: 0;
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: var(--gold);
-  text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
-}
-
-.app-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  max-width: 560px;
-  width: 100%;
-  margin: 0 auto;
-}
+/* ============ شاشة البداية ============ */
 
 .start-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-app);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  padding: 30px 10px;
-  flex: 1;
+  gap: 30px;
+  padding: 30px 20px;
+  z-index: 10;
+}
+
+.start-screen[hidden] {
+  display: none;
+}
+
+.start-title {
+  margin: 0;
+  font-size: clamp(38px, 12vw, 68px);
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(212, 175, 55, 0.45), 0 0 8px rgba(212, 175, 55, 0.25);
+  text-align: center;
+  line-height: 1.1;
 }
 
 .start-text {
@@ -86,7 +74,7 @@ body {
 .start-buttons {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 14px;
   width: 100%;
   max-width: 420px;
 }
@@ -96,8 +84,8 @@ body {
   color: var(--gold-light);
   border: 1px solid var(--gold-dark);
   border-radius: 12px;
-  padding: 18px 10px;
-  font-size: 17px;
+  padding: 20px 10px;
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
@@ -113,15 +101,47 @@ body {
   transform: scale(0.97);
 }
 
+/* ============ شاشة اللعب ============ */
+
 .game-screen {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .game-screen[hidden] {
   display: none;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  text-align: center;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .status-bar {
@@ -403,7 +423,7 @@ body {
 
 @media (min-width: 480px) {
   .app-title {
-    font-size: 34px;
+    font-size: 28px;
   }
   .status-value {
     font-size: 16px;
