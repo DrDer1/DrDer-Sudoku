@@ -23,15 +23,7 @@
 
 <main class="app-main">
 
-  <section class="status-bar" aria-label="معلومات المرحلة">
-    <div class="status-item">
-      <span class="status-label">المرحلة</span>
-      <span class="status-value" id="levelDisplay">1</span>
-    </div>
-    <div class="status-item">
-      <span class="status-label">الصعوبة</span>
-      <span class="status-value" id="difficultyDisplay">سهل</span>
-    </div>
+  <section class="status-bar" aria-label="معلومات اللعب">
     <div class="status-item">
       <span class="status-label">الوقت</span>
       <span class="status-value" id="timerDisplay">00:00</span>
@@ -57,9 +49,8 @@
   <section class="actions" aria-label="أدوات اللعب">
     <button type="button" class="action-btn" id="eraseBtn">مسح</button>
     <button type="button" class="action-btn" id="undoBtn">تراجع</button>
-    <button type="button" class="action-btn" id="hintBtn">تلميح</button>
     <button type="button" class="action-btn" id="pauseBtn">إيقاف</button>
-    <button type="button" class="action-btn" id="restartBtn">إعادة</button>
+    <button type="button" class="action-btn" id="newPuzzleBtn">لغز جديد</button>
   </section>
 
   <section class="progress-bar" aria-label="مؤشر التقدم">
@@ -82,10 +73,9 @@
 <div class="overlay" id="winOverlay" hidden>
   <div class="overlay-card">
     <h2 class="overlay-title">أحسنت!</h2>
-    <p class="overlay-text">أكملت المرحلة بنجاح.</p>
+    <p class="overlay-text">أكملت اللغز بنجاح.</p>
     <p class="overlay-text">زمن الإكمال: <strong id="winTime">00:00</strong></p>
-    <p class="overlay-text">أفضل زمن: <strong id="winBestTime">—</strong></p>
-    <button type="button" class="primary-btn" id="nextLevelBtn">المرحلة التالية</button>
+    <button type="button" class="primary-btn" id="newGameBtn">لغز جديد</button>
   </div>
 </div>
 
