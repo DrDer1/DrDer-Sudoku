@@ -480,6 +480,7 @@
 
   function handleKeyDown(event) {
     if (state.paused || state.won) return;
+    if (dom.gameScreen.hidden) return;
     var key = event.key;
     if (key >= '1' && key <= '9') {
       placeNumber(Number(key));
@@ -521,14 +522,13 @@
     persistProgress();
   }
 
-  // تسجيل Service Worker مع مراعاة المسار الفرعي على GitHub Pages.
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     try {
       var swUrl = new URL('sw.js', window.location.href);
       navigator.serviceWorker.register(swUrl.href, { scope: './' }).catch(function () {});
     } catch (e) {
-      // تجاهل أي فشل في التسجيل لضمان عدم تعطل التطبيق.
+      // تجاهل أي فشل في التسجيل.
     }
   }
 
