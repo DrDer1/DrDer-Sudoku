@@ -1,8 +1,10 @@
 // DrDer-Sudoku app.js
-// واجهة اللعبة ومنطق التفاعل. يعتمد على engine.js (Sudoku.js) وstorage.js.
-// المحرك يعمل على سلاسل نصية من 81 حرفاً. الواجهة تعمل على مصفوفة 9×9.
-// التحويل بينهما يتم عبر دوال محلية في هذا الملف.
+// واجهة اللعبة ومنطق التفاعل.
+// يعتمد على engine.js (محرك سودوكو يعمل على سلسلة 81 حرفاً)
+// وعلى storage.js (تخزين محلي).
+// التحويل بين مصفوفة 9×9 وسلسلة 81 حرفاً يجري محلياً في هذا الملف.
 // لا مراحل، لا تلميح، لا حل مخزّن. الفوز يُحتسب وفق قواعد السودوكو.
+// متوافق مع GitHub Pages على المسار الفرعي /DrDer-Sudoku/.
 
 (function () {
   'use strict';
@@ -59,7 +61,6 @@
     return map;
   }
 
-  // سلسلة 81 حرفاً (1-9 و '.') ← مصفوفة 9×9 من أرقام (1-9 و 0).
   function stringToGrid(str) {
     if (typeof str !== 'string' || str.length !== 81) return null;
     var grid = [];
@@ -80,7 +81,6 @@
     return grid;
   }
 
-  // مصفوفة 9×9 ← سلسلة 81 حرفاً.
   function gridToString(grid) {
     var str = '';
     for (var r = 0; r < 9; r++) {
@@ -338,8 +338,6 @@
     persistProgress();
   }
 
-  // التحقق من اكتمال اللوحة وصحتها وفق قواعد السودوكو فقط.
-  // يستخدم المحرك عبر تحويل مصفوفة اللاعب إلى سلسلة ثم validate_board.
   function isCompleteAndValid(grid) {
     for (var r = 0; r < 9; r++) {
       for (var c = 0; c < 9; c++) {
@@ -397,9 +395,7 @@
     dom.pauseBtn.classList.remove('active');
 
     var grid = generateNewPuzzle(difficulty);
-    if (!grid) {
-      return;
-    }
+    if (!grid) return;
 
     state.difficulty = difficulty;
     state.puzzle = cloneGrid(grid);
@@ -433,7 +429,6 @@
   function resumeSavedProgress() {
     var saved = loadProgress();
     if (!saved) return false;
-
     if (!saved.puzzle || !saved.playerBoard) return false;
 
     state.difficulty = saved.difficulty || 'easy';
@@ -526,10 +521,15 @@
     persistProgress();
   }
 
+  // تسجيل Service Worker مع مراعاة المسار الفرعي على GitHub Pages.
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
-    var swPath = 'sw.js';
-    navigator.serviceWorker.register(swPath).catch(function () {});
+    try {
+      var swUrl = new URL('sw.js', window.location.href);
+      navigator.serviceWorker.register(swUrl.href, { scope: './' }).catch(function () {});
+    } catch (e) {
+      // تجاهل أي فشل في التسجيل لضمان عدم تعطل التطبيق.
+    }
   }
 
   function init() {
