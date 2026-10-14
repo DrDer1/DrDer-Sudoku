@@ -66,6 +66,64 @@ body {
   margin: 0 auto;
 }
 
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 30px 10px;
+  flex: 1;
+}
+
+.start-text {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.start-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.start-btn {
+  background: linear-gradient(180deg, var(--bg-card), #101014);
+  color: var(--gold-light);
+  border: 1px solid var(--gold-dark);
+  border-radius: 12px;
+  padding: 18px 10px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+}
+
+.start-btn:hover {
+  border-color: var(--gold);
+}
+
+.start-btn:active {
+  background: rgba(212, 175, 55, 0.18);
+  transform: scale(0.97);
+}
+
+.game-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.game-screen[hidden] {
+  display: none;
+}
+
 .status-bar {
   display: grid;
   grid-template-columns: 1fr;
