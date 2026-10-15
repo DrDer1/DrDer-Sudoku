@@ -2,9 +2,8 @@
 // واجهة اللعبة ومنطق التفاعل.
 // يعتمد على engine.js (محرك سودوكو يعمل على سلسلة 81 حرفاً)
 // وعلى storage.js (تخزين محلي).
-// التحويل بين مصفوفة 9×9 وسلسلة 81 حرفاً يجري محلياً في هذا الملف.
-// لا مراحل، لا تلميح، لا حل مخزّن. الفوز يُحتسب وفق قواعد السودوكو.
-// تم تعطيل التحقق من تفرد الحل لتسريع التوليد في المستويات العالية.
+// نظام مراحل تصاعدي: كل مرحلة لها بذرة ثابتة، والانتقال من N إلى N+1.
+// بدون فحص تفرد الحل، وبذرة حتمية لكل مرحلة.
 // متوافق مع GitHub Pages على المسار الفرعي /DrDer-Sudoku/.
 
 (function () {
@@ -16,6 +15,8 @@
 
   var state = {
     difficulty: 'easy',
+    level: 1,
+    retryCounter: 0,
     puzzle: null,
     playerBoard: null,
     givenCells: null,
@@ -107,6 +108,12 @@
   function updateTimerDisplay() {
     if (dom.timerDisplay) {
       dom.timerDisplay.textContent = formatTime(state.elapsedSeconds);
+    }
+  }
+
+  function updateLevelDisplay() {
+    if (dom.levelDisplay) {
+      dom.levelDisplay.textContent = String(state.level);
     }
   }
 
@@ -378,6 +385,7 @@
     stopTimer();
     var time = state.elapsedSeconds;
     if (dom.winTime) dom.winTime.textContent = formatTime(time);
+    if (dom.winLevel) dom.winLevel.textContent = String(state.level);
     if (dom.winOverlay) dom.winOverlay.hidden = false;
     clearProgress();
   }
@@ -387,6 +395,8 @@
     if (!state.puzzle || !state.playerBoard) return;
     saveProgress({
       difficulty: state.difficulty,
+      level: state.level,
+      retryCounter: state.retryCounter,
       puzzle: state.puzzle,
       playerBoard: state.playerBoard,
       elapsedSeconds: state.timerRunning
@@ -396,15 +406,47 @@
     });
   }
 
-  // التوليد بدون التحقق من تفرد الحل.
-  // المعامل الثاني false يعني عدم اشتراط الحل الوحيد، وهذا يسرّع التوليد كثيرًا.
-  function generateNewPuzzle(difficulty) {
+  // مولّد أرقام عشوائية حتمي (Mulberry32) لتشغيل Math.random مؤقتًا.
+  function createSeededRandom(seedStr) {
+    var h = 2166136261 >>> 0;
+    var str = String(seedStr);
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    if (h === 0) h = 0x9e3779b9;
+    var stateSeed = h >>> 0;
+    return function rng() {
+      stateSeed = (stateSeed + 0x6D2B79F5) >>> 0;
+      var t = stateSeed;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // تشغيل دالة مع استبدال Math.random مؤقتًا بمولّد بذرة ثابتة.
+  function runWithSeededRandom(seedStr, fn) {
+    var original = Math.random;
+    Math.random = createSeededRandom(seedStr);
+    try {
+      return fn();
+    } finally {
+      Math.random = original;
+    }
+  }
+
+  // توليد لغز ببذرة حتمية مشتقة من (الصعوبة + رقم المرحلة + محاولة إعادة التوليد).
+  function generatePuzzleForLevel(difficulty, level, retry) {
     if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
       return null;
     }
+    var seedStr = 'DrDerSudoku:' + difficulty + ':' + level + ':' + retry;
     var str = null;
     try {
-      str = sudoku.generate(difficulty, false);
+      str = runWithSeededRandom(seedStr, function () {
+        return sudoku.generate(difficulty, false);
+      });
     } catch (e) {
       str = null;
     }
@@ -412,21 +454,13 @@
     return stringToGrid(str);
   }
 
-  function startPuzzleWithDifficulty(difficulty) {
-    if (!isKnownDifficulty(difficulty)) return;
-
-    stopTimer();
-    if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
-    if (dom.winOverlay) dom.winOverlay.hidden = true;
-    if (dom.pauseBtn) {
-      dom.pauseBtn.textContent = 'إيقاف';
-      dom.pauseBtn.classList.remove('active');
-    }
-
-    var grid = generateNewPuzzle(difficulty);
-    if (!grid) return;
+  function loadPuzzleIntoState(difficulty, level, retry) {
+    var grid = generatePuzzleForLevel(difficulty, level, retry);
+    if (!grid) return false;
 
     state.difficulty = difficulty;
+    state.level = level;
+    state.retryCounter = retry;
     state.puzzle = cloneGrid(grid);
     state.playerBoard = cloneGrid(grid);
     state.givenCells = buildGivenMap(grid);
@@ -438,16 +472,58 @@
     state.paused = false;
     state.won = false;
 
+    return true;
+  }
+
+  function startLevel(difficulty, level) {
+    stopTimer();
+    if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
+    if (dom.winOverlay) dom.winOverlay.hidden = true;
+    if (dom.pauseBtn) {
+      dom.pauseBtn.textContent = 'إيقاف';
+      dom.pauseBtn.classList.remove('active');
+    }
+
+    var ok = loadPuzzleIntoState(difficulty, level, 0);
+    if (!ok) return;
+
     if (dom.startScreen) dom.startScreen.hidden = true;
     if (dom.gameScreen) dom.gameScreen.hidden = false;
 
+    updateLevelDisplay();
     updateTimerDisplay();
     renderBoard();
     startTimer();
     persistProgress();
   }
 
-  function showStartScreen() {
+  function startNewPuzzleSameLevel() {
+    if (state.paused) {
+      state.paused = false;
+      if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
+      if (dom.pauseBtn) {
+        dom.pauseBtn.textContent = 'إيقاف';
+        dom.pauseBtn.classList.remove('active');
+      }
+    }
+    var nextRetry = state.retryCounter + 1;
+    var ok = loadPuzzleIntoState(state.difficulty, state.level, nextRetry);
+    if (!ok) return;
+
+    if (dom.winOverlay) dom.winOverlay.hidden = true;
+    updateLevelDisplay();
+    updateTimerDisplay();
+    renderBoard();
+    startTimer();
+    persistProgress();
+  }
+
+  function startNextLevel() {
+    if (dom.winOverlay) dom.winOverlay.hidden = true;
+    startLevel(state.difficulty, state.level + 1);
+  }
+
+  function goHome() {
     stopTimer();
     if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
     if (dom.winOverlay) dom.winOverlay.hidden = true;
@@ -461,6 +537,9 @@
     if (!saved.puzzle || !saved.playerBoard) return false;
 
     state.difficulty = isKnownDifficulty(saved.difficulty) ? saved.difficulty : 'easy';
+    state.level = (typeof saved.level === 'number' && saved.level >= 1) ? Math.floor(saved.level) : 1;
+    state.retryCounter = (typeof saved.retryCounter === 'number' && saved.retryCounter >= 0)
+      ? Math.floor(saved.retryCounter) : 0;
     state.puzzle = cloneGrid(saved.puzzle);
     state.playerBoard = cloneGrid(saved.playerBoard);
     state.givenCells = buildGivenMap(saved.puzzle);
@@ -475,6 +554,7 @@
     if (dom.startScreen) dom.startScreen.hidden = true;
     if (dom.gameScreen) dom.gameScreen.hidden = false;
 
+    updateLevelDisplay();
     updateTimerDisplay();
     renderBoard();
     startTimer();
@@ -504,7 +584,7 @@
       if (target.classList && target.classList.contains('start-btn')) {
         var difficulty = target.getAttribute('data-difficulty');
         if (isKnownDifficulty(difficulty)) {
-          startPuzzleWithDifficulty(difficulty);
+          startLevel(difficulty, 1);
         }
         return;
       }
@@ -570,6 +650,7 @@
     dom.startScreen = $('startScreen');
     dom.gameScreen = $('gameScreen');
     dom.board = $('sudokuBoard');
+    dom.levelDisplay = $('levelDisplay');
     dom.timerDisplay = $('timerDisplay');
     dom.progressText = $('progressText');
     dom.progressFill = $('progressFill');
@@ -577,6 +658,7 @@
     dom.pauseOverlay = $('pauseOverlay');
     dom.winOverlay = $('winOverlay');
     dom.winTime = $('winTime');
+    dom.winLevel = $('winLevel');
 
     createBoardElement();
 
@@ -596,13 +678,16 @@
     if (dom.pauseBtn) dom.pauseBtn.addEventListener('click', togglePause);
 
     var newPuzzleBtn = $('newPuzzleBtn');
-    if (newPuzzleBtn) newPuzzleBtn.addEventListener('click', showStartScreen);
+    if (newPuzzleBtn) newPuzzleBtn.addEventListener('click', startNewPuzzleSameLevel);
+
+    var homeBtn = $('homeBtn');
+    if (homeBtn) homeBtn.addEventListener('click', goHome);
 
     var resumeBtn = $('resumeBtn');
     if (resumeBtn) resumeBtn.addEventListener('click', togglePause);
 
-    var newGameBtn = $('newGameBtn');
-    if (newGameBtn) newGameBtn.addEventListener('click', showStartScreen);
+    var nextLevelBtn = $('nextLevelBtn');
+    if (nextLevelBtn) nextLevelBtn.addEventListener('click', startNextLevel);
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -617,7 +702,7 @@
       resumed = false;
     }
     if (!resumed) {
-      showStartScreen();
+      goHome();
     }
 
     registerServiceWorker();
