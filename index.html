@@ -35,11 +35,20 @@
 
   <header class="app-header" id="appHeader">
     <h1 class="app-title">DrDer Sudoku</h1>
+    <button type="button" class="home-btn" id="homeBtn" aria-label="العودة إلى القائمة الرئيسية">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M12 3.2 3 10.5V21h6.2v-6.2h5.6V21H21V10.5z"/>
+      </svg>
+    </button>
   </header>
 
   <main class="app-main">
 
     <section class="status-bar" aria-label="معلومات اللعب">
+      <div class="status-item">
+        <span class="status-label">المرحلة</span>
+        <span class="status-value" id="levelDisplay">1</span>
+      </div>
       <div class="status-item">
         <span class="status-label">الوقت</span>
         <span class="status-value" id="timerDisplay">00:00</span>
@@ -93,9 +102,9 @@
 <div class="overlay" id="winOverlay" hidden>
   <div class="overlay-card">
     <h2 class="overlay-title">أحسنت!</h2>
-    <p class="overlay-text">أكملت اللغز بنجاح.</p>
+    <p class="overlay-text">أكملت المرحلة <strong id="winLevel">1</strong>.</p>
     <p class="overlay-text">زمن الإكمال: <strong id="winTime">00:00</strong></p>
-    <button type="button" class="primary-btn" id="newGameBtn">لغز جديد</button>
+    <button type="button" class="primary-btn" id="nextLevelBtn">المرحلة التالية</button>
   </div>
 </div>
 
