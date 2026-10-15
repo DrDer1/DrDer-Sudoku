@@ -4,6 +4,7 @@
 // وعلى storage.js (تخزين محلي).
 // نظام مراحل تصاعدي: كل مرحلة لها بذرة ثابتة، والانتقال من N إلى N+1.
 // بدون فحص تفرد الحل، وبذرة حتمية لكل مرحلة.
+// إضافة: نافذة "كيفية اللعب" مع فيديو sudoku.mp4.
 // متوافق مع GitHub Pages على المسار الفرعي /DrDer-Sudoku/.
 
 (function () {
@@ -406,7 +407,6 @@
     });
   }
 
-  // مولّد أرقام عشوائية حتمي (Mulberry32) لتشغيل Math.random مؤقتًا.
   function createSeededRandom(seedStr) {
     var h = 2166136261 >>> 0;
     var str = String(seedStr);
@@ -425,7 +425,6 @@
     };
   }
 
-  // تشغيل دالة مع استبدال Math.random مؤقتًا بمولّد بذرة ثابتة.
   function runWithSeededRandom(seedStr, fn) {
     var original = Math.random;
     Math.random = createSeededRandom(seedStr);
@@ -436,7 +435,6 @@
     }
   }
 
-  // توليد لغز ببذرة حتمية مشتقة من (الصعوبة + رقم المرحلة + محاولة إعادة التوليد).
   function generatePuzzleForLevel(difficulty, level, retry) {
     if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.generate !== 'function') {
       return null;
@@ -527,8 +525,36 @@
     stopTimer();
     if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
     if (dom.winOverlay) dom.winOverlay.hidden = true;
+    if (dom.howOverlay) dom.howOverlay.hidden = true;
     if (dom.startScreen) dom.startScreen.hidden = false;
     if (dom.gameScreen) dom.gameScreen.hidden = true;
+  }
+
+  // ====== كيفية اللعب: تشغيل وإيقاف الفيديو ======
+
+  function openHow() {
+    if (!dom.howOverlay) return;
+    dom.howOverlay.hidden = false;
+    var video = dom.howVideo;
+    if (video) {
+      try {
+        video.currentTime = 0;
+      } catch (e) {}
+      var p = video.play();
+      if (p && typeof p.catch === 'function') p.catch(function () {});
+    }
+  }
+
+  function closeHow() {
+    if (!dom.howOverlay) return;
+    var video = dom.howVideo;
+    if (video) {
+      try {
+        video.pause();
+        video.currentTime = 0;
+      } catch (e) {}
+    }
+    dom.howOverlay.hidden = true;
   }
 
   function resumeSavedProgress() {
@@ -621,6 +647,9 @@
         pauseTimer();
         state.timerRunning = false;
       }
+      if (dom.howVideo) {
+        try { dom.howVideo.pause(); } catch (e) {}
+      }
       persistProgress();
     } else {
       if (!state.paused && !state.won && dom.gameScreen && !dom.gameScreen.hidden) {
@@ -659,11 +688,31 @@
     dom.winOverlay = $('winOverlay');
     dom.winTime = $('winTime');
     dom.winLevel = $('winLevel');
+    dom.howOverlay = $('howOverlay');
+    dom.howVideo = $('howVideo');
+    dom.howBtn = $('howBtn');
+    dom.closeHowBtn = $('closeHowBtn');
 
     createBoardElement();
 
     if (dom.startScreen) {
       dom.startScreen.addEventListener('click', handleStartButtons);
+    }
+
+    if (dom.howBtn) {
+      dom.howBtn.addEventListener('click', openHow);
+    }
+
+    if (dom.closeHowBtn) {
+      dom.closeHowBtn.addEventListener('click', closeHow);
+    }
+
+    if (dom.howOverlay) {
+      dom.howOverlay.addEventListener('click', function (event) {
+        if (event.target === dom.howOverlay) {
+          closeHow();
+        }
+      });
     }
 
     var numberPad = document.querySelector('.number-pad');
