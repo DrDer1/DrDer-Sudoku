@@ -3,8 +3,8 @@
 // يعتمد على engine.js (محرك سودوكو يعمل على سلسلة 81 حرفاً)
 // وعلى storage.js (تخزين محلي).
 // نظام مراحل تصاعدي: كل مرحلة لها بذرة ثابتة، والانتقال من N إلى N+1.
-// بدون فحص تفرد الحل، وبذرة حتمية لكل مرحلة.
-// إضافة: نافذة "كيفية اللعب" مع فيديو sudoku.mp4.
+// التحقق من الفوز يعتمد على قواعد السودوكو الحقيقية (صف، عمود، مربع 3×3)،
+// وليس على sudoku.validate_board وحدها لأنها تتحقق فقط من البنية.
 // متوافق مع GitHub Pages على المسار الفرعي /DrDer-Sudoku/.
 
 (function () {
@@ -364,17 +364,55 @@
     persistProgress();
   }
 
+  // تحقق كامل من قواعد السودوكو على المصفوفة 9×9.
+  // يعيد true فقط إذا كانت كل الخلايا ممتلئة (1-9) ولا يوجد تكرار
+  // في أي صف أو عمود أو مربع 3×3.
   function isCompleteAndValid(grid) {
-    for (var r = 0; r < 9; r++) {
-      for (var c = 0; c < 9; c++) {
-        if (grid[r][c] === 0) return false;
+    if (!grid || grid.length !== 9) return false;
+    var r, c, v, br, bc, rr, cc;
+
+    for (r = 0; r < 9; r++) {
+      if (!grid[r] || grid[r].length !== 9) return false;
+      for (c = 0; c < 9; c++) {
+        v = grid[r][c];
+        if (typeof v !== 'number' || !isFinite(v)) return false;
+        if (Math.floor(v) !== v) return false;
+        if (v < 1 || v > 9) return false;
       }
     }
-    var str = gridToString(grid);
-    if (typeof sudoku === 'undefined' || !sudoku || typeof sudoku.validate_board !== 'function') {
-      return false;
+
+    for (r = 0; r < 9; r++) {
+      var seenRow = {};
+      for (c = 0; c < 9; c++) {
+        v = grid[r][c];
+        if (seenRow[v]) return false;
+        seenRow[v] = true;
+      }
     }
-    return sudoku.validate_board(str) === true;
+
+    for (c = 0; c < 9; c++) {
+      var seenCol = {};
+      for (r = 0; r < 9; r++) {
+        v = grid[r][c];
+        if (seenCol[v]) return false;
+        seenCol[v] = true;
+      }
+    }
+
+    for (br = 0; br < 3; br++) {
+      for (bc = 0; bc < 3; bc++) {
+        var seenBox = {};
+        for (rr = br * 3; rr < br * 3 + 3; rr++) {
+          for (cc = bc * 3; cc < bc * 3 + 3; cc++) {
+            v = grid[rr][cc];
+            if (seenBox[v]) return false;
+            seenBox[v] = true;
+          }
+        }
+      }
+    }
+
+    return true;
   }
 
   function checkWin() {
@@ -529,8 +567,6 @@
     if (dom.startScreen) dom.startScreen.hidden = false;
     if (dom.gameScreen) dom.gameScreen.hidden = true;
   }
-
-  // ====== كيفية اللعب: تشغيل وإيقاف الفيديو ======
 
   function openHow() {
     if (!dom.howOverlay) return;
