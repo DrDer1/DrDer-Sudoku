@@ -1,5 +1,7 @@
 // DrDer-Sudoku storage.js
-// تخزين محلي بسيط للغز الحالي. لا مراحل، لا أفضل أوقات، لا حل مخزّن.
+// تخزين محلي للتقدم الحالي والإعدادات.
+// يخزّن رقم المرحلة والصعوبة وعدد مرات إعادة توليد اللغز لنفس المرحلة.
+// لا يحفظ حلًا للغز.
 
 var STORAGE_KEYS = {
   progress: 'DrDerSudoku:progress',
@@ -185,6 +187,9 @@ function saveProgress(data) {
   var difficulty = isValidDifficulty(data.difficulty) ? data.difficulty : null;
   if (difficulty === null) return false;
 
+  var level = isPlainInt(data.level) && data.level >= 1 ? data.level : 1;
+  var retryCounter = isPlainInt(data.retryCounter) && data.retryCounter >= 0 ? data.retryCounter : 0;
+
   var puzzle = isValidSudokuBoard(data.puzzle) ? cloneBoardSafe(data.puzzle) : null;
   if (puzzle === null) return false;
 
@@ -198,6 +203,8 @@ function saveProgress(data) {
 
   var payload = {
     difficulty: difficulty,
+    level: level,
+    retryCounter: retryCounter,
     puzzle: puzzle,
     playerBoard: playerBoard,
     elapsedSeconds: elapsedSeconds,
@@ -219,6 +226,9 @@ function loadProgress() {
   var difficulty = isValidDifficulty(parsed.difficulty) ? parsed.difficulty : null;
   if (difficulty === null) return null;
 
+  var level = isPlainInt(parsed.level) && parsed.level >= 1 ? parsed.level : 1;
+  var retryCounter = isPlainInt(parsed.retryCounter) && parsed.retryCounter >= 0 ? parsed.retryCounter : 0;
+
   var puzzle = isValidSudokuBoard(parsed.puzzle) ? cloneBoardSafe(parsed.puzzle) : null;
   if (puzzle === null) return null;
 
@@ -232,6 +242,8 @@ function loadProgress() {
 
   return {
     difficulty: difficulty,
+    level: level,
+    retryCounter: retryCounter,
     puzzle: puzzle,
     playerBoard: playerBoard,
     elapsedSeconds: elapsedSeconds,
