@@ -28,6 +28,7 @@
     <button type="button" class="start-btn" data-difficulty="insane">جنوني</button>
     <button type="button" class="start-btn" data-difficulty="inhuman">لا إنساني</button>
   </div>
+  <button type="button" class="how-btn" id="howBtn">كيفية اللعب</button>
   <p class="copyright">جميع الحقوق محفوظة DrDer 2026</p>
 </section>
 
@@ -105,6 +106,21 @@
     <p class="overlay-text">أكملت المرحلة <strong id="winLevel">1</strong>.</p>
     <p class="overlay-text">زمن الإكمال: <strong id="winTime">00:00</strong></p>
     <button type="button" class="primary-btn" id="nextLevelBtn">المرحلة التالية</button>
+  </div>
+</div>
+
+<div class="overlay" id="howOverlay" hidden>
+  <div class="how-card">
+    <h2 class="overlay-title">كيفية اللعب</h2>
+    <video
+      id="howVideo"
+      class="how-video"
+      src="sudoku.mp4"
+      controls
+      playsinline
+      preload="metadata">
+    </video>
+    <button type="button" class="primary-btn" id="closeHowBtn">إغلاق</button>
   </div>
 </div>
 
