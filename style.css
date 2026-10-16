@@ -361,7 +361,7 @@ body {
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 5px;
 }
 
@@ -371,7 +371,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 2px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -543,7 +543,7 @@ body {
   }
   .action-btn {
     padding: 8px 2px;
-    font-size: 12px;
+    font-size: 11px;
   }
 }
 
