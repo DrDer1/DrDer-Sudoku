@@ -5,6 +5,7 @@
 // نظام مراحل تصاعدي: كل مرحلة لها بذرة ثابتة، والانتقال من N إلى N+1.
 // التحقق من الفوز يعتمد على قواعد السودوكو الحقيقية (صف، عمود، مربع 3×3)،
 // وليس على sudoku.validate_board وحدها لأنها تتحقق فقط من البنية.
+// إضافة زر "إعادة" لإرجاع اللغز إلى حالته الأصلية.
 // متوافق مع GitHub Pages على المسار الفرعي /DrDer-Sudoku/.
 
 (function () {
@@ -342,6 +343,37 @@
     persistProgress();
   }
 
+  // إعادة اللغز إلى حالته الأصلية:
+  // تُمسح كل إجابات اللاعب، ويُعاد المؤقت إلى الصفر، وتبدأ المحاولة من جديد.
+  function restartLevel() {
+    if (!state.puzzle) return;
+
+    if (state.paused) {
+      state.paused = false;
+      if (dom.pauseOverlay) dom.pauseOverlay.hidden = true;
+      if (dom.pauseBtn) {
+        dom.pauseBtn.textContent = 'إيقاف';
+        dom.pauseBtn.classList.remove('active');
+      }
+    }
+
+    state.playerBoard = cloneGrid(state.puzzle);
+    state.givenCells = buildGivenMap(state.puzzle);
+    state.history = [];
+    state.selected = null;
+    state.elapsedSeconds = 0;
+    state.timerRunning = false;
+    state.timerStartedAt = 0;
+    state.won = false;
+
+    if (dom.winOverlay) dom.winOverlay.hidden = true;
+
+    updateTimerDisplay();
+    renderBoard();
+    startTimer();
+    persistProgress();
+  }
+
   function togglePause() {
     if (state.won) return;
     if (state.paused) {
@@ -364,9 +396,6 @@
     persistProgress();
   }
 
-  // تحقق كامل من قواعد السودوكو على المصفوفة 9×9.
-  // يعيد true فقط إذا كانت كل الخلايا ممتلئة (1-9) ولا يوجد تكرار
-  // في أي صف أو عمود أو مربع 3×3.
   function isCompleteAndValid(grid) {
     if (!grid || grid.length !== 9) return false;
     var r, c, v, br, bc, rr, cc;
@@ -759,6 +788,9 @@
 
     var undoBtn = $('undoBtn');
     if (undoBtn) undoBtn.addEventListener('click', undoMove);
+
+    var restartBtn = $('restartBtn');
+    if (restartBtn) restartBtn.addEventListener('click', restartLevel);
 
     if (dom.pauseBtn) dom.pauseBtn.addEventListener('click', togglePause);
 
